@@ -5,8 +5,10 @@ Barmonkey für Arduino 1.0 Software (incl TFT)
 
 Das Sketch für den Arduino funktioniert nur in Kombination mit einem erreichbaren Webserver der das barmonkey_ui Projekt hostet. Das beinhaltet eine Webseite incl. einer MySql-Datenbank über die die Benutzeroberfläche und die Rezeptdatenbank bereitgestellt werden.
 
+----------------------------------
 
 Pin-Belegung:
+===========
 
 2 - Pumpe
 
@@ -23,7 +25,9 @@ Pin-Belegung:
 A0 - Wage Signal
 
 
+
 TFT-Pins:
+===========
 
 A1 - sclk
 
