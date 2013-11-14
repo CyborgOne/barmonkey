@@ -1,3 +1,23 @@
+/* 
+barmonkey - v1.0
+
+Arduino Sketch für barmonkey 
+Copyright (c) 2013 Daniel Scheidler All right reserved.
+
+cybihomecontrol ist Freie Software: Sie können es unter den Bedingungen
+der GNU General Public License, wie von der Free Software Foundation,
+Version 3 der Lizenz oder (nach Ihrer Option) jeder späteren
+veröffentlichten Version, weiterverbreiten und/oder modifizieren.
+
+barmonkey wird in der Hoffnung, dass es nützlich sein wird, aber
+OHNE JEDE GEWÄHRLEISTUNG, bereitgestellt; sogar ohne die implizite
+Gewährleistung der MARKTFÄHIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK.
+Siehe die GNU General Public License für weitere Details.
++
+Sie sollten eine Kopie der GNU General Public License zusammen mit diesem
+Programm erhalten haben. Wenn nicht, siehe <http://www.gnu.org/licenses/>.
+*/
+
 #include <SPI.h>
 #include <Ethernet.h>
 
@@ -6,19 +26,19 @@
 const byte numPins  =  4;
 
 // Analog-Input Pin zum auslesen der Waage
-#define weightPin          A0;
+const int weightPin         = A0;
 
 // Pin zum Pumpe schalten 
-#define switchPinPressure   2;
+const int switchPinPressure =  2;
 
 // Pin zum Ventil schalten 
-#define switchPinVentil     3;
+const int switchPinVentil   =  3;
 
 // 4 Pins für Binärwert
-#define switchPin1          4;
-#define switchPin2          5;
-#define switchPin4          6;
-#define switchPin8          7;
+const int switchPin1        =  4;
+const int switchPin2        =  5;
+const int switchPin4        =  6;
+const int switchPin8        =  7;
 
 // Variablen für Wiege-Funktion
 float tara;
@@ -41,6 +61,29 @@ void(* resetFunc) (void) = 0;
 unsigned long resetMillis;
 boolean resetSytem = false;
 // --------------- END - Reset stuff -----------------------
+
+const __FlashStringHelper *htmlHeader;
+const __FlashStringHelper *htmlHead1;
+const __FlashStringHelper *htmlHead2;
+const __FlashStringHelper *htmlBackTail;
+const __FlashStringHelper *htmlFooter1;
+const __FlashStringHelper *htmlFooter2;
+const __FlashStringHelper *htmlTail; 
+const __FlashStringHelper *htmlTail2;
+const __FlashStringHelper *htmlParamError;
+const __FlashStringHelper *trtd180;
+const __FlashStringHelper *tdtd;
+const __FlashStringHelper *tdtr;
+const __FlashStringHelper *submit;
+const __FlashStringHelper *posttable;
+const __FlashStringHelper *htmlAnschlussCombo;
+const __FlashStringHelper *htmlMengeCombo;
+
+
+
+
+
+
 
  
 void setup() {
@@ -98,7 +141,7 @@ void loop() {
      *ptr=0;
   
     if (n>0) {
-      parseUrlParams();
+      parseUrlParams(client);
     }
   }
 }
@@ -113,22 +156,22 @@ void loop() {
 /**
  *  URL auswerten und entsprechende Seite aufrufen
  */
-void parseUrlParams(){
+void parseUrlParams(EthernetClient client){
   char *ptr = strstr(HttpFrame, "/index.html");
   if (ptr) {
-     runIndexWebpage();
+     runIndexWebpage(client);
      return;
   } 
 
   ptr = strstr(HttpFrame, "/info.html");
   if(ptr){
-    runInfoWebpage();
+    runInfoWebpage(client);
     return;
   } 
 
   // Wenn keine gültige Seite gefunden wurde,
   // Startseite aufrufen  
-  runIndexWebpage();
+  runIndexWebpage(client);
 }
 
 
@@ -137,8 +180,8 @@ void parseUrlParams(){
 /**
  * Webseite - Startseite anzeigen
  */
-void  runIndexWebpage(){
-  client.println(HtmlHeader);
+void  runIndexWebpage(EthernetClient client){
+  client.println(htmlHeader);
   client.println(F("Index-Website"));
   client.stop();
 }
@@ -146,8 +189,8 @@ void  runIndexWebpage(){
 /**
  * Webseite - Infoseite anzeigen
  */
-void runInfoWebpage(){
-  client.println(HtmlHeader);
+void runInfoWebpage(EthernetClient client){
+  client.println(htmlHeader);
   client.println(F("Info-Website"));
   client.stop();
 }
@@ -157,8 +200,8 @@ void runInfoWebpage(){
 /**
  * Webseite - Rezept zubereiten anzeigen
  */
-void  runZubereitungWebpage(){
-  client.println(HtmlHeader);
+void  runZubereitungWebpage(EthernetClient client){
+  client.println(htmlHeader);
   client.println(F("Zubereitung-Website"));
   client.println();
 
@@ -177,17 +220,10 @@ void  runZubereitungWebpage(){
 
 
 
-
-
-
-
-
 /**
  *  Haupt-Methode für die Zubereitung  
  */
 void rezeptZubereiten(char* rezept) {    
-    URLPARAM_RESULT rc;
-
     // URL-Parameter parsen
     if (strlen(rezept)) {
       boolean paramError = false;
@@ -371,7 +407,7 @@ void doTara(){
   // Wage Initialisieren
 
   for (int i = 0; i < anzahlMittelung; i++) {  //Mittelung von tara
-    tara = tara + analogRead(ANALOG_INPUT_PIN);
+    tara = tara + analogRead(weightPin);
   }
   
   tara = tara/anzahlMittelung;
@@ -391,7 +427,7 @@ float refreshWeight(){
   float sensorValue = 0;
   //Mittelung des Messwertes
   for (int i = 0; i < anzahlMittelung; i++) {   
-    sensorValue = sensorValue + analogRead(ANALOG_INPUT_PIN);
+    sensorValue = sensorValue + analogRead(weightPin);
   }
   sensorValue = sensorValue/anzahlMittelung;
 
@@ -475,57 +511,57 @@ char* int2bin(unsigned int x)
 
 
 
-
 // ---------------------------------------
 //   Strings (im Flash-Speicher abgelegt)
 // ---------------------------------------
-const __FlashStringHelper *HtmlHeader=F("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n");
+void initStrings(){
+                           htmlHeader = F("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n");
 
-const __FlashStringHelper *HtmlHead1 =F("<html><head>"
-                                        "<title>Barmonkey</title>"
-                                        "<style type=\"text/css\">"
-                                        "body{font-family:sans-serif}"
-                                        "h1{font-size:25pt;}"
-                                        "p{font-size:20pt;}"
-                                        "*{font-size:pt}"
-                                        "a{color:#abfb9c;}"
-                                        "</style>"
-                                        "</head><body text=\"white\" bgcolor=\"#494949\">");
+                           htmlHead1 = F("<html><head>"
+                                         "<title>Barmonkey</title>"
+                                         "<style type=\"text/css\">"
+                                         "body{font-family:sans-serif}"
+                                         "h1{font-size:25pt;}"
+                                         "p{font-size:20pt;}"
+                                         "*{font-size:pt}"
+                                         "a{color:#abfb9c;}"
+                                         "</style>"
+                                         "</head><body text=\"white\" bgcolor=\"#494949\">");
                 
-const __FlashStringHelper *htmlHead2 = F("<center>"
+                           htmlHead2 = F("<center>"
                                          "<hr><h2>Barmonkey</h2><hr>"
                                          "<span style=\"position: absolute;right: 30px; bottom: 20px; \">Developed by Daniel Scheidler</span>");
 
-const __FlashStringHelper *htmlBackTail = F("<br/><a  href=\"javascript:history.back()\">Zur&uumlck!</a><br/><br/>");
+                           htmlBackTail = F("<br/><a  href=\"javascript:history.back()\">Zur&uumlck!</a><br/><br/>");
 
-const __FlashStringHelper *htmlFooter1 = F("<br/><a  style=\"position: absolute;left: 30px; bottom: 20px; \"  href=\"/\">Zur&uuml;ck zum Hauptmen&uuml;</a><br/><br/>"
+                           htmlFooter1 = F("<br/><a  style=\"position: absolute;left: 30px; bottom: 20px; \"  href=\"/\">Zur&uuml;ck zum Hauptmen&uuml;</a><br/><br/>"
                                           "<div width=\"200\" height=\"18\"  style=\"position: absolute;left: 30px; bottom: 50px; \"> <b>Gewicht:</b>");
     
-const __FlashStringHelper *htmlFooter2 =  F("g</div></center>");
+                           htmlFooter2 =  F("g</div></center>");
 
-const __FlashStringHelper *htmlTail =    F("</body></html>");
+                           htmlTail =    F("</body></html>");
     
-const __FlashStringHelper *htmlTail2 =     F("</center></body></html>");  
+                           htmlTail2 =     F("</center></body></html>");  
 
-const __FlashStringHelper *htmlParamError = F("<br><font color=\"red\">Die gültigen Parameter lauten <b>schalte</b> und <b>menge</b></font><br>"
+                           htmlParamError = F("<br><font color=\"red\">Die gültigen Parameter lauten <b>schalte</b> und <b>menge</b></font><br>"
                                              "<br><br><b>Beispiel um den Anschluss 4 für eine Sekunde ein zu schalten:</b><br>"
                                              "<br><i>http://arduino_url/rawCmd?schalte=4&menge=10</i>");
 
-const __FlashStringHelper *trtd180 = F("<tr><td width=\"400\" align=\"right\">");
+                           trtd180 = F("<tr><td width=\"400\" align=\"right\">");
 
-const __FlashStringHelper *tdtd = F("</td><td><input maxlength=\"10\" type=\"password\" name=\"");
+                           tdtd = F("</td><td><input maxlength=\"10\" type=\"password\" name=\"");
 
-const __FlashStringHelper *tdtr = F("\"/></td></tr>");
+                           tdtr = F("\"/></td></tr>");
 
-const __FlashStringHelper *submit =  F("</tbody></table><br/>"
+                           submit =  F("</tbody></table><br/>"
                                        "<input type='submit' value='Abschicken'/></form>");
 
-const __FlashStringHelper *posttable = F("method='post'>"
+                           posttable = F("method='post'>"
                                        "<table cellpadding=\"2\" border=\"1\" rules=\"rows\" frame=\"box\" bordercolor=\"white\" width=\"500\">"
                                        "<thead><b>");
 
 
-const __FlashStringHelper *htmlAnschlussCombo = F("<b>Anschluss: </b>"
+                           htmlAnschlussCombo = F("<b>Anschluss: </b>"
                                                   "<select name=\"schalte\" size=\"1\" > "
                                                   "  <option value=\"1\">Anschluss 1</option>"
                                                   "  <option value=\"2\">Anschluss 2</option>"
@@ -545,7 +581,7 @@ const __FlashStringHelper *htmlAnschlussCombo = F("<b>Anschluss: </b>"
                                                   "  <option value=\"16\">Anschluss 16</option>"
                                                   "</select>");
 
-const __FlashStringHelper *htmlMengeCombo = F("<b>Menge: </b>"
+                           htmlMengeCombo = F("<b>Menge: </b>"
                                               "<select name=\"menge\" size=\"1\" > "
                                               "  <option value=\"5\">5 ml</option>"
                                               "  <option value=\"10\">10 ml</option>"
@@ -563,4 +599,5 @@ const __FlashStringHelper *htmlMengeCombo = F("<b>Menge: </b>"
                                               "  <option value=\"90\">90 ml</option>"
                                               "  <option value=\"100\">100 ml</option>"
                                               "</select>");
-
+ 
+}
