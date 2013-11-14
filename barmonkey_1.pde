@@ -481,7 +481,7 @@ char* int2bin(unsigned int x)
 // ---------------------------------------
 const __FlashStringHelper *HtmlHeader=F("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n");
 
-const __FlashStringHelper *HtmlHead1 =  "<html><head>"
+const __FlashStringHelper *HtmlHead1 =F("<html><head>"
                                         "<title>Barmonkey</title>"
                                         "<style type=\"text/css\">"
                                         "body{font-family:sans-serif}"
@@ -490,78 +490,77 @@ const __FlashStringHelper *HtmlHead1 =  "<html><head>"
                                         "*{font-size:pt}"
                                         "a{color:#abfb9c;}"
                                         "</style>"
-                                        "</head><body text=\"white\" bgcolor=\"#494949\">";
+                                        "</head><body text=\"white\" bgcolor=\"#494949\">");
                 
-const __FlashStringHelper *htmlHead2 = "<center>"
-                                       "<hr><h2>Barmonkey</h2><hr>"
-                                       "<span style=\"position: absolute;right: 30px; bottom: 20px; \">Developed by Daniel Scheidler</span>";
+const __FlashStringHelper *htmlHead2 = F("<center>"
+                                         "<hr><h2>Barmonkey</h2><hr>"
+                                         "<span style=\"position: absolute;right: 30px; bottom: 20px; \">Developed by Daniel Scheidler</span>");
 
-const __FlashStringHelper *htmlBackTail = "<br/><a  href=\"javascript:history.back()\">Zur&uumlck!</a><br/><br/>";
+const __FlashStringHelper *htmlBackTail = F("<br/><a  href=\"javascript:history.back()\">Zur&uumlck!</a><br/><br/>");
 
-const __FlashStringHelper *htmlFooter1 = "<br/><a  style=\"position: absolute;left: 30px; bottom: 20px; \"  href=\"/\">Zur&uuml;ck zum Hauptmen&uuml;</a><br/><br/>"
-                                          "<div width=\"200\" height=\"18\"  style=\"position: absolute;left: 30px; bottom: 50px; \"> <b>Gewicht:</b>";
+const __FlashStringHelper *htmlFooter1 = F("<br/><a  style=\"position: absolute;left: 30px; bottom: 20px; \"  href=\"/\">Zur&uuml;ck zum Hauptmen&uuml;</a><br/><br/>"
+                                          "<div width=\"200\" height=\"18\"  style=\"position: absolute;left: 30px; bottom: 50px; \"> <b>Gewicht:</b>");
     
-const __FlashStringHelper *htmlFooter2 =  "g</div>"
-                                           "</center>";
+const __FlashStringHelper *htmlFooter2 =  F("g</div></center>");
 
-const __FlashStringHelper *htmlTail =    "</body></html>";
+const __FlashStringHelper *htmlTail =    F("</body></html>");
     
-const __FlashStringHelper *htmlTail2 =     "</center></body></html>";  
+const __FlashStringHelper *htmlTail2 =     F("</center></body></html>");  
 
-const __FlashStringHelper *htmlParamError = "<br><font color=\"red\">Die gültigen Parameter lauten <b>schalte</b> und <b>menge</b></font><br>"
+const __FlashStringHelper *htmlParamError = F("<br><font color=\"red\">Die gültigen Parameter lauten <b>schalte</b> und <b>menge</b></font><br>"
                                              "<br><br><b>Beispiel um den Anschluss 4 für eine Sekunde ein zu schalten:</b><br>"
-                                             "<br><i>http://arduino_url/rawCmd?schalte=4&menge=10</i>";
+                                             "<br><i>http://arduino_url/rawCmd?schalte=4&menge=10</i>");
 
-const __FlashStringHelper *trtd180 = "<tr><td width=\"400\" align=\"right\">";
+const __FlashStringHelper *trtd180 = F("<tr><td width=\"400\" align=\"right\">");
 
-const __FlashStringHelper *tdtd = "</td><td><input maxlength=\"10\" type=\"password\" name=\"";
+const __FlashStringHelper *tdtd = F("</td><td><input maxlength=\"10\" type=\"password\" name=\"");
 
-const __FlashStringHelper *tdtr = "\"/></td></tr>";
+const __FlashStringHelper *tdtr = F("\"/></td></tr>");
 
-const __FlashStringHelper *submit =    "</tbody></table><br/>"
-                                       "<input type='submit' value='Abschicken'/></form>";
+const __FlashStringHelper *submit =  F("</tbody></table><br/>"
+                                       "<input type='submit' value='Abschicken'/></form>");
 
-const __FlashStringHelper *posttable = "method='post'>"
+const __FlashStringHelper *posttable = F("method='post'>"
                                        "<table cellpadding=\"2\" border=\"1\" rules=\"rows\" frame=\"box\" bordercolor=\"white\" width=\"500\">"
-                                       "<thead><b>";
+                                       "<thead><b>");
 
 
-const __FlashStringHelper *htmlAnschlussCombo = "<b>Anschluss: </b>"
-                                                "<select name=\"schalte\" size=\"1\" > "
-                                                "  <option value=\"1\">Anschluss 1</option>"
-                                                "  <option value=\"2\">Anschluss 2</option>"
-                                                "  <option value=\"3\">Anschluss 3</option>"
-                                                "  <option value=\"4\">Anschluss 4</option>"
-                                                "  <option value=\"5\">Anschluss 5</option>"
-                                                "  <option value=\"6\">Anschluss 6</option>"
-                                                "  <option value=\"7\">Anschluss 7</option>"
-                                                "  <option value=\"8\">Anschluss 8</option>"
-                                                "  <option value=\"9\">Anschluss 9</option>"
-                                                "  <option value=\"10\">Anschluss 10</option>"
-                                                "  <option value=\"11\">Anschluss 11</option>"
-                                                "  <option value=\"12\">Anschluss 12</option>"
-                                                "  <option value=\"13\">Anschluss 13</option>"
-                                                "  <option value=\"14\">Anschluss 14</option>"
-                                                "  <option value=\"15\">Anschluss 15</option>"
-                                                "  <option value=\"16\">Anschluss 16</option>"
-                                                "</select>";
+const __FlashStringHelper *htmlAnschlussCombo = F("<b>Anschluss: </b>"
+                                                  "<select name=\"schalte\" size=\"1\" > "
+                                                  "  <option value=\"1\">Anschluss 1</option>"
+                                                  "  <option value=\"2\">Anschluss 2</option>"
+                                                  "  <option value=\"3\">Anschluss 3</option>"
+                                                  "  <option value=\"4\">Anschluss 4</option>"
+                                                  "  <option value=\"5\">Anschluss 5</option>"
+                                                  "  <option value=\"6\">Anschluss 6</option>"
+                                                  "  <option value=\"7\">Anschluss 7</option>"
+                                                  "  <option value=\"8\">Anschluss 8</option>"
+                                                  "  <option value=\"9\">Anschluss 9</option>"
+                                                  "  <option value=\"10\">Anschluss 10</option>"
+                                                  "  <option value=\"11\">Anschluss 11</option>"
+                                                  "  <option value=\"12\">Anschluss 12</option>"
+                                                  "  <option value=\"13\">Anschluss 13</option>"
+                                                  "  <option value=\"14\">Anschluss 14</option>"
+                                                  "  <option value=\"15\">Anschluss 15</option>"
+                                                  "  <option value=\"16\">Anschluss 16</option>"
+                                                  "</select>");
 
-const __FlashStringHelper *htmlMengeCombo = "<b>Menge: </b>"
-                                            "<select name=\"menge\" size=\"1\" > "
-                                            "  <option value=\"5\">5 ml</option>"
-                                            "  <option value=\"10\">10 ml</option>"
-                                            "  <option value=\"15\">15 ml</option>"
-                                            "  <option value=\"20\">20 ml</option>"
-                                            "  <option value=\"25\">25 ml</option>"
-                                            "  <option value=\"30\">30 ml</option>"
-                                            "  <option value=\"35\">35 ml</option>"
-                                            "  <option value=\"40\">40 ml</option>"
-                                            "  <option value=\"45\">45 ml</option>"
-                                            "  <option value=\"50\">50 ml</option>"
-                                            "  <option value=\"60\">60 ml</option>"
-                                            "  <option value=\"70\">70 ml</option>"
-                                            "  <option value=\"80\">80 ml</option>"
-                                            "  <option value=\"90\">90 ml</option>"
-                                            "  <option value=\"100\">100 ml</option>"
-                                            "</select>";
+const __FlashStringHelper *htmlMengeCombo = F("<b>Menge: </b>"
+                                              "<select name=\"menge\" size=\"1\" > "
+                                              "  <option value=\"5\">5 ml</option>"
+                                              "  <option value=\"10\">10 ml</option>"
+                                              "  <option value=\"15\">15 ml</option>"
+                                              "  <option value=\"20\">20 ml</option>"
+                                              "  <option value=\"25\">25 ml</option>"
+                                              "  <option value=\"30\">30 ml</option>"
+                                              "  <option value=\"35\">35 ml</option>"
+                                              "  <option value=\"40\">40 ml</option>"
+                                              "  <option value=\"45\">45 ml</option>"
+                                              "  <option value=\"50\">50 ml</option>"
+                                              "  <option value=\"60\">60 ml</option>"
+                                              "  <option value=\"70\">70 ml</option>"
+                                              "  <option value=\"80\">80 ml</option>"
+                                              "  <option value=\"90\">90 ml</option>"
+                                              "  <option value=\"100\">100 ml</option>"
+                                              "</select>");
 
