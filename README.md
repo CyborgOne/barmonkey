@@ -3,8 +3,16 @@ barmonkey_1
 
 Barmonkey für Arduino 1.0 Software (incl TFT)
 
-Das Sketch für den Arduino funktioniert nur in Kombination mit einem erreichbaren Webserver der das barmonkey_ui Projekt hostet. Das beinhaltet eine Webseite incl. einer MySql-Datenbank über die die Benutzeroberfläche und die Rezeptdatenbank bereitgestellt werden.
+Das Sketch für den Arduino funktioniert nur in Kombination mit einem erreichbaren Webserver der das barmonkey_ui Projekt hostet. 
+Dieses beinhaltet eine Webseite incl. einer MySql-Datenbank über die die Benutzeroberfläche und die Rezeptdatenbank bereitgestellt werden.
+Ebenfalls wird von dem UI-Projekt ein Interface mitgeliefert, mit dem der Arduino die Daten der MySQL-Datenbank abrufen kann. 
 
+Das Projekt ist in keiner Weise als fertiges Produkt anzusehen!
+Es befindet sich in der Entwicklung und dient lediglich als Inspiration. 
+
+Es gibt weder eine Garantie für Funktionalität, noch für Support, Updates oder sonstige Unterstützung.
+
+Wer jedoch selber damit rum spielen möchte, darf das natürlich gerne tun.
 ----------------------------------
 
 Pin-Belegung:
