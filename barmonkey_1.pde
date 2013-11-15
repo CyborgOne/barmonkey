@@ -50,11 +50,14 @@ float eichWert = 284.7;
 float eichGewicht = 309;
 int anzahlMittelung = 300; // um so höher um so präzieser (jedoch langsamer)
 
+
+// Variablen für Netzwerkdienste
 IPAddress pi_adress(192, 168, 1, 16);
 
 char HttpFrame[256];           // General buffer for Http Params
 EthernetServer HttpServer(80);   // HTTP is used to send IR commands
 EthernetClient interfaceClient;
+
 
 
 // ------------------ Reset stuff --------------------------
@@ -65,6 +68,17 @@ boolean resetSytem = false;
 
 
  
+/**
+ * SETUP
+ *
+ * Grundeinrichtung des Barmonkeys
+ * - Serielle Ausgabe aktivieren
+ * - TFT initialisieren
+ * - Netzwerk initialisieren
+ * - Webserver starten
+ * - IN-/OUT- Pins definieren
+ * - Waage initialisieren (Tara)
+ */
 void setup() {
   unsigned char mac[]  = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
   unsigned char ip[]   = {192, 168, 1, 15};
@@ -105,11 +119,23 @@ void setup() {
  
 
 
+/**
+ * LOOP
+ * 
+ * Standard-Loop-Methode des Arduino Sketch
+ * Diese Methode wird nach dem Setup endlos wiederholt.
+ *
+ * - Gewicht aktualisieren
+ * - Webserver: 
+ *    * auf Client warten
+ *      * Falls Client verbunden ist entsprechende Webseite ausgeben
+ *        und Verbindung beenden.
+ */
 void loop() {
-   // Gewicht aktualisieren
   float sensorValue = refreshWeight();
-  delay(200);
+
   EthernetClient client = HttpServer.available();
+  delay(100);
 
   if (client) {
      Serial.println(F("Clientverbindung OK"));
@@ -138,7 +164,9 @@ void loop() {
  *  URL auswerten und entsprechende Seite aufrufen
  */
 void showWebsite(EthernetClient client){
-  char *ptr = readFromClient(client);
+  HttpFrame = readFromClient(client);
+  char *ptr = strstr(HttpFrame, "/index.html");
+  
   Serial.print(F("URL-Param:"));
   Serial.println(ptr);
   if (ptr) {
