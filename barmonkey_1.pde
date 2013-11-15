@@ -158,35 +158,36 @@ void loop() {
 
 
 // ---------------------------------------
-//     Webserver/Seiten Hilfsmethoden
+//     Webserver Hilfsmethoden
 // ---------------------------------------
+
 /**
  *  URL auswerten und entsprechende Seite aufrufen
  */
 void showWebsite(EthernetClient client){
   HttpFrame = readFromClient(client);
-  char *ptr = strstr(HttpFrame, "/index.html");
+  boolean pageFound = false;
   
   Serial.print(F("URL-Param:"));
-  Serial.println(ptr);
+  Serial.println(HttpFrame);
+
+  char *ptr = strstr(HttpFrame, "/index.html");
   if (ptr) {
-     runIndexWebpage(client);
- 
-     free(ptr);
-     ptr = NULL;
-     return;
+    runIndexWebpage(client);
+    pageFound = true;
   } 
 
-  ptr = strstr(HttpFrame, "/info.html");
+  ptr = strstr(HttpFrame, "/info");
   if(ptr){
     runInfoWebpage(client);
- 
-    free(ptr);
-    ptr = NULL;
-    return;
+    pageFound = true;
   } 
 
-
+  ptr = strstr(HttpFrame, "/rawCmd");
+  if(ptr){
+    runIndexWebpage(client);
+    pageFound = true;
+  } 
 
 
   // Wenn keine gültige Seite gefunden wurde,
@@ -194,75 +195,54 @@ void showWebsite(EthernetClient client){
 
   free(ptr);
   ptr = NULL;
-
-  runIndexWebpage(client);
+  if(!pageFound){
+    runIndexWebpage(client);
+  }
 }
 
 
 
 
+// ---------------------------------------
+//     Webseiten
+// ---------------------------------------
+
 /**
- * Webseite - Startseite anzeigen
+ * Startseite anzeigen
  */
 void  runIndexWebpage(EthernetClient client){
-  client.println(F("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n"));
-  client.println(F("Index-Website"));
-  client.print(F("<html><head>"
-               "<title>Barmonkey</title>"
-               "<style type=\"text/css\">"
-               "body{font-family:sans-serif}"
-               "h1{font-size:25pt;}"
-               "p{font-size:20pt;}"
-               "*{font-size:pt}"
-               "a{color:#abfb9c;}"
-               "</style>"
-               "</head><body text=\"white\" bgcolor=\"#494949\">"
-               "<center>"
-               "<hr><h2>Barmonkey</h2><hr>"
-               "<span style=\"position: absolute;right: 30px; bottom: 20px; \">Entwickelt von Daniel Scheidler und Julian Theis</span>"
-               "<br><br><br><h4>Navigation</h4>"
-               "<a href='/rawCmd'>Manuelle Schaltung</a><br>"                 
-               "<br>"
-               "<a href='/network'>Netzwerk-Einstellungen</a><br>"
-               "<br><br><br><br><br>"));
+  showHead(client);
+ 
+  client.print(F("<h4>Navigation</h4><br/>"
+                 "<a href='/rawCmd'>Manuelle Schaltung</a><br>"
+                 "<a href='/info'>Informationen</a><br>"));
 
-  client.println(F("Freier Speicher: "));                              
-  client.println(freeMemory());               
-  client.println(F("<br/><a  style=\"position: absolute;left: 30px; bottom: 20px; \"  href=\"/\">Zur&uuml;ck zum Hauptmen&uuml;</a><br/><br/>"
-                   "<div width=\"200\" height=\"18\"  style=\"position: absolute;left: 30px; bottom: 50px; \"> <b>Gewicht:</b>"
-                   "g</div></center>"
-                   "</body></html>"));
+  showFooter(client);
 }
 
 
+
 /**
- * Webseite - Infoseite anzeigen
+ * Infoseite anzeigen
  */
 void runInfoWebpage(EthernetClient client){
-  client.println(F("<html><head>"
-               "<title>Barmonkey</title>"
-               "<style type=\"text/css\">"
-               "body{font-family:sans-serif}"
-               "h1{font-size:25pt;}"
-               "p{font-size:20pt;}"
-               "*{font-size:pt}"
-               "a{color:#abfb9c;}"
-               "</style>"
-               "</head><body text=\"white\" bgcolor=\"#494949\">"
-               "<center>"
-               "<hr><h2>Barmonkey</h2><hr>"
-               "<span style=\"position: absolute;right: 30px; bottom: 20px; \">Entwickelt von Daniel Scheidler und Julian Theis</span>"));
-  client.println(F("<br><br><br><h4>Infos</h4><br>"));
+  showHead(client);
+  
+  client.println(F("<h4>Infos</h4><br/>"));
+  
+  showFooter(client);
 }
 
 
+
 /**
- * Webseite - Rezept zubereiten anzeigen
+ * Rezept zubereiten anzeigen/durchführen
  */
 void  runZubereitungWebpage(EthernetClient client){
-  client.println(F("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n"));
-  client.println(F("Zubereitung-Website"));
-  client.println();
+  
+  showHead(client);
+  
+  client.println(F("<h4>Zubereitung-Website</h4><br/>"));
 
   // URL-Parameter auswerten
   char* ptr=strstr(HttpFrame, "rezeptId=");
@@ -272,72 +252,47 @@ void  runZubereitungWebpage(EthernetClient client){
 
     rezeptZubereiten(ptr);
   }
-}
-
-
-
-
-/**
- *  Haupt-Methode für die Zubereitung  
- */
-void rezeptZubereiten(char* rezept) {    
-    // URL-Parameter parsen
-    if (strlen(rezept)) {
-      boolean paramError = false;
-
-      if (interfaceClient.connect(pi_adress, 80)) {
-        Serial.println("PI-Interface connected... ");
-
-        interfaceClient.print("GET /interface.php?command=getRezeptById&rezeptId=");
-        interfaceClient.print(rezept);
-        interfaceClient.println(" HTTP/1.1");        
-        interfaceClient.print(" Host: ");        
-        interfaceClient.println(pi_adress);    
-        interfaceClient.println("Connection: close");
-        interfaceClient.println();
-
-        char * interfaceString   = readResponse();
-        char * interfaceValues   = strtok (interfaceString, ";");
-       
-        char * interfaceId       = interfaceValues;
-        interfaceValues          = strtok(NULL, ";");
-        
-        char * interfaceName     = interfaceValues;
-        interfaceValues          = strtok(NULL, ";");
-        
-        char * interfaceZutaten  = interfaceValues;
-        interfaceValues          = strtok(NULL, ";");
-
-        char * interfacePreis    = interfaceValues;
-        interfaceValues          = strtok(NULL, ";");
-        
-        output(F("Zubereitung:"));
-        
-        outputNoNewLine(F("Id: "));
-        output(interfaceId);
-        
-        outputNoNewLine(F("Name: "));
-        output(interfaceName);
-        
-        outputNoNewLine(F("Zutaten: "));
-        output(interfaceZutaten);
-        
-        outputNoNewLine(F("Preis: "));
-        outputNoNewLine(interfacePreis);
-
-
-
-      } else {
-        output(F("Verbindungsfehler bei dem Versuch das Rezept abzurufen."));
-      }    
   
-      interfaceClient.stop();  
-    } else {
-      Serial.println(F("!!! Fehlende Parameter !!!"));     
-    } 
- 
+  showFooter(client);
 }
 
+
+
+
+// ---------------------------------------
+//     HTML-Hilfsmethoden
+// ---------------------------------------
+
+void showHead(EthernetClient client){
+  client.println(F("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n"));
+
+  client.println(F("<html><head>"
+                   "<title>Barmonkey</title>"
+                   "<style type=\"text/css\">"
+                   "body{font-family:sans-serif}"
+                   "h1{font-size:25pt;}"
+                   "p{font-size:20pt;}"
+                   "*{font-size:pt}"
+                   "a{color:#abfb9c;}"
+                   "</style>"
+                   "</head><body text=\"white\" bgcolor=\"#494949\">"
+                   "<center>"
+                   "<hr><h2>Barmonkey</h2><hr>"));
+}
+
+
+void showFooter(EthernetClient client){
+  
+  client.print(F("<br/><a  style=\"position: absolute;left: 30px; bottom: 20px; \"  href=\"/\">Zur&uuml;ck zum Hauptmen&uuml;</a><br/><br/>"
+                 "<div width=\"200\" height=\"18\"  style=\"position: absolute;left: 30px; bottom: 50px; \"> <b>Gewicht:</b>"));
+  client.print(masse);
+  client.println(F("g<br/><br/>"));
+  client.println(F("Freier Speicher: "));                              
+  client.println(freeMemory()); 
+  client.print(F( "<span style=\"position: absolute;right: 30px; bottom: 20px; \">Entwickelt von Daniel Scheidler und Julian Theis</span>"
+                  "</div></center>"
+                  "</body></html>"));
+}
 
 
 
@@ -453,6 +408,66 @@ void zutatAbfuellen(char anschluss[20], char einheiten[20]){
 
 
 
+/**
+ *  Haupt-Methode für die Zubereitung  
+ */
+void rezeptZubereiten(char* rezept) {    
+    // URL-Parameter parsen
+    if (strlen(rezept)) {
+      boolean paramError = false;
+
+      if (interfaceClient.connect(pi_adress, 80)) {
+        Serial.println("PI-Interface connected... ");
+
+        interfaceClient.print("GET /interface.php?command=getRezeptById&rezeptId=");
+        interfaceClient.print(rezept);
+        interfaceClient.println(" HTTP/1.1");        
+        interfaceClient.print(" Host: ");        
+        interfaceClient.println(pi_adress);    
+        interfaceClient.println("Connection: close");
+        interfaceClient.println();
+
+        char * interfaceString   = readResponse();
+        char * interfaceValues   = strtok (interfaceString, ";");
+       
+        char * interfaceId       = interfaceValues;
+        interfaceValues          = strtok(NULL, ";");
+        
+        char * interfaceName     = interfaceValues;
+        interfaceValues          = strtok(NULL, ";");
+        
+        char * interfaceZutaten  = interfaceValues;
+        interfaceValues          = strtok(NULL, ";");
+
+        char * interfacePreis    = interfaceValues;
+        interfaceValues          = strtok(NULL, ";");
+        
+        output(F("Zubereitung:"));
+        
+        outputNoNewLine(F("Id: "));
+        output(interfaceId);
+        
+        outputNoNewLine(F("Name: "));
+        output(interfaceName);
+        
+        outputNoNewLine(F("Zutaten: "));
+        output(interfaceZutaten);
+        
+        outputNoNewLine(F("Preis: "));
+        outputNoNewLine(interfacePreis);
+
+
+
+      } else {
+        output(F("Verbindungsfehler bei dem Versuch das Rezept abzurufen."));
+      }    
+  
+      interfaceClient.stop();  
+    } else {
+      Serial.println(F("!!! Fehlende Parameter !!!"));     
+    } 
+ 
+}
 
 
 
@@ -571,6 +586,8 @@ char* readFromClient(EthernetClient client){
 
   return ret;
 }
+
+
 
 
 // ---------------------------------------
