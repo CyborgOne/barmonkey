@@ -4,7 +4,7 @@ barmonkey - v1.0
 Arduino Sketch für barmonkey 
 Copyright (c) 2013 Daniel Scheidler All right reserved.
 
-cybihomecontrol ist Freie Software: Sie können es unter den Bedingungen
+barmonkey ist Freie Software: Sie können es unter den Bedingungen
 der GNU General Public License, wie von der Free Software Foundation,
 Version 3 der Lizenz oder (nach Ihrer Option) jeder späteren
 veröffentlichten Version, weiterverbreiten und/oder modifizieren.
@@ -13,13 +13,14 @@ barmonkey wird in der Hoffnung, dass es nützlich sein wird, aber
 OHNE JEDE GEWÄHRLEISTUNG, bereitgestellt; sogar ohne die implizite
 Gewährleistung der MARKTFÄHIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK.
 Siehe die GNU General Public License für weitere Details.
-+
+
 Sie sollten eine Kopie der GNU General Public License zusammen mit diesem
 Programm erhalten haben. Wenn nicht, siehe <http://www.gnu.org/licenses/>.
 */
 
 #include <SPI.h>
 #include <Ethernet.h>
+#include <MemoryFree.h>
 
 // Digital-Output Pins für Ventilauswahl 
 // per Binär Wert (4 Pins = 0-15)
@@ -62,28 +63,6 @@ unsigned long resetMillis;
 boolean resetSytem = false;
 // --------------- END - Reset stuff -----------------------
 
-const __FlashStringHelper *htmlHeader;
-const __FlashStringHelper *htmlHead1;
-const __FlashStringHelper *htmlHead2;
-const __FlashStringHelper *htmlBackTail;
-const __FlashStringHelper *htmlFooter1;
-const __FlashStringHelper *htmlFooter2;
-const __FlashStringHelper *htmlTail; 
-const __FlashStringHelper *htmlTail2;
-const __FlashStringHelper *htmlParamError;
-const __FlashStringHelper *trtd180;
-const __FlashStringHelper *tdtd;
-const __FlashStringHelper *tdtr;
-const __FlashStringHelper *submit;
-const __FlashStringHelper *posttable;
-const __FlashStringHelper *htmlAnschlussCombo;
-const __FlashStringHelper *htmlMengeCombo;
-
-
-
-
-
-
 
  
 void setup() {
@@ -97,8 +76,12 @@ void setup() {
   while (!Serial) {
     ; // wait for serial port to connect. Needed for Leonardo only
   }
+  Serial.println(F("Barmonkey v1"));
 
+  Serial.println(F("Netzwerk initialisieren"));
   Ethernet.begin(mac, ip, dns, gate, mask);
+
+  Serial.println(F("Webserver starten"));
   HttpServer.begin();
 
   Serial.print( F("IP: ") );
@@ -126,24 +109,22 @@ void loop() {
    // Gewicht aktualisieren
   float sensorValue = refreshWeight();
   delay(200);
-
   EthernetClient client = HttpServer.available();
+
   if (client) {
+     Serial.println(F("Clientverbindung OK"));
+
      char *ptr=HttpFrame;
      int n=0;
-
-     while (client.connected() && client.available()) {
-       if (n++<sizeof(HttpFrame))
-         *ptr++=client.read();
-       else
-         client.flush(); 
+     while (client.connected()) {
+       if(client.available()){
+         Serial.println(F("Website anzeigen"));
+         showWebsite(client);
+         client.stop();
+       }
      }
-     *ptr=0;
-  
-    if (n>0) {
-      parseUrlParams(client);
-    }
   }
+  
 }
 
 
@@ -156,21 +137,36 @@ void loop() {
 /**
  *  URL auswerten und entsprechende Seite aufrufen
  */
-void parseUrlParams(EthernetClient client){
-  char *ptr = strstr(HttpFrame, "/index.html");
+void showWebsite(EthernetClient client){
+  char *ptr = readFromClient(client);
+  Serial.print(F("URL-Param:"));
+  Serial.println(ptr);
   if (ptr) {
      runIndexWebpage(client);
+ 
+     free(ptr);
+     ptr = NULL;
      return;
   } 
 
   ptr = strstr(HttpFrame, "/info.html");
   if(ptr){
     runInfoWebpage(client);
+ 
+    free(ptr);
+    ptr = NULL;
     return;
   } 
 
+
+
+
   // Wenn keine gültige Seite gefunden wurde,
   // Startseite aufrufen  
+
+  free(ptr);
+  ptr = NULL;
+
   runIndexWebpage(client);
 }
 
@@ -181,27 +177,62 @@ void parseUrlParams(EthernetClient client){
  * Webseite - Startseite anzeigen
  */
 void  runIndexWebpage(EthernetClient client){
-  client.println(htmlHeader);
+  client.println(F("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n"));
   client.println(F("Index-Website"));
-  client.stop();
+  client.print(F("<html><head>"
+               "<title>Barmonkey</title>"
+               "<style type=\"text/css\">"
+               "body{font-family:sans-serif}"
+               "h1{font-size:25pt;}"
+               "p{font-size:20pt;}"
+               "*{font-size:pt}"
+               "a{color:#abfb9c;}"
+               "</style>"
+               "</head><body text=\"white\" bgcolor=\"#494949\">"
+               "<center>"
+               "<hr><h2>Barmonkey</h2><hr>"
+               "<span style=\"position: absolute;right: 30px; bottom: 20px; \">Entwickelt von Daniel Scheidler und Julian Theis</span>"
+               "<br><br><br><h4>Navigation</h4>"
+               "<a href='/rawCmd'>Manuelle Schaltung</a><br>"                 
+               "<br>"
+               "<a href='/network'>Netzwerk-Einstellungen</a><br>"
+               "<br><br><br><br><br>"));
+
+  client.println(F("Freier Speicher: "));                              
+  client.println(freeMemory());               
+  client.println(F("<br/><a  style=\"position: absolute;left: 30px; bottom: 20px; \"  href=\"/\">Zur&uuml;ck zum Hauptmen&uuml;</a><br/><br/>"
+                   "<div width=\"200\" height=\"18\"  style=\"position: absolute;left: 30px; bottom: 50px; \"> <b>Gewicht:</b>"
+                   "g</div></center>"
+                   "</body></html>"));
 }
+
 
 /**
  * Webseite - Infoseite anzeigen
  */
 void runInfoWebpage(EthernetClient client){
-  client.println(htmlHeader);
-  client.println(F("Info-Website"));
-  client.stop();
+  client.println(F("<html><head>"
+               "<title>Barmonkey</title>"
+               "<style type=\"text/css\">"
+               "body{font-family:sans-serif}"
+               "h1{font-size:25pt;}"
+               "p{font-size:20pt;}"
+               "*{font-size:pt}"
+               "a{color:#abfb9c;}"
+               "</style>"
+               "</head><body text=\"white\" bgcolor=\"#494949\">"
+               "<center>"
+               "<hr><h2>Barmonkey</h2><hr>"
+               "<span style=\"position: absolute;right: 30px; bottom: 20px; \">Entwickelt von Daniel Scheidler und Julian Theis</span>"));
+  client.println(F("<br><br><br><h4>Infos</h4><br>"));
 }
-
 
 
 /**
  * Webseite - Rezept zubereiten anzeigen
  */
 void  runZubereitungWebpage(EthernetClient client){
-  client.println(htmlHeader);
+  client.println(F("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n"));
   client.println(F("Zubereitung-Website"));
   client.println();
 
@@ -213,8 +244,6 @@ void  runZubereitungWebpage(EthernetClient client){
 
     rezeptZubereiten(ptr);
   }
-
-  client.stop();
 }
 
 
@@ -235,7 +264,7 @@ void rezeptZubereiten(char* rezept) {
         interfaceClient.print(rezept);
         interfaceClient.println(" HTTP/1.1");        
         interfaceClient.print(" Host: ");        
-        interfaceClient.println(pi_adress);        
+        interfaceClient.println(pi_adress);    
         interfaceClient.println("Connection: close");
         interfaceClient.println();
 
@@ -253,26 +282,30 @@ void rezeptZubereiten(char* rezept) {
 
         char * interfacePreis    = interfaceValues;
         interfaceValues          = strtok(NULL, ";");
+        
+        output(F("Zubereitung:"));
+        
+        outputNoNewLine(F("Id: "));
+        output(interfaceId);
+        
+        outputNoNewLine(F("Name: "));
+        output(interfaceName);
+        
+        outputNoNewLine(F("Zutaten: "));
+        output(interfaceZutaten);
+        
+        outputNoNewLine(F("Preis: "));
+        outputNoNewLine(interfacePreis);
 
-        Serial.print("Id: ");
-        Serial.println(interfaceId);
 
-        Serial.print("Name: ");
-        Serial.println(interfaceName);
-
-        Serial.print("Zutaten: ");
-        Serial.println(interfaceZutaten);
-
-        Serial.print("Preis: ");
-        Serial.println(interfacePreis);
 
       } else {
-        Serial.println("connection failed");
+        output(F("Verbindungsfehler bei dem Versuch das Rezept abzurufen."));
       }    
   
       interfaceClient.stop();  
     } else {
-      Serial.println("!!! Fehlende Parameter !!!");     
+      Serial.println(F("!!! Fehlende Parameter !!!"));     
     } 
  
 }
@@ -334,19 +367,19 @@ void zutatAbfuellen(char anschluss[20], char einheiten[20]){
       // Pumpe einschalten
       digitalWrite(switchPinPressure, HIGH);
       
-      Serial.print("Anschluss: ");
+      Serial.print(F("Anschluss: "));
       Serial.print(atoi(anschluss));
-      Serial.print(" fuer ");
+      Serial.print(F(" fuer "));
       Serial.print(atoi(einheiten));
-      Serial.println("ml geoeffnet");
+      Serial.println(F("ml geoeffnet"));
      
       while ((tmpVal-tmpCurrentWeight) < atoi(einheiten)){
         tmpVal = refreshWeight();
       }
      
-      Serial.print("Abschaltung bei Menge:");
+      Serial.print(F("Abschaltung bei Menge:"));
       Serial.print(tmpVal);
-      Serial.println("g");
+      Serial.println(F("g"));
       
       // Pumpe abschalten
       digitalWrite(switchPinPressure, LOW);   
@@ -369,22 +402,22 @@ void zutatAbfuellen(char anschluss[20], char einheiten[20]){
         stablileMessDauer = millis()-startmillis;
       }
 
-      Serial.print("Reell abgefuellte Menge:");
+      Serial.print(F("Reell abgefuellte Menge:"));
       Serial.print(highestVal);
-      Serial.println("g");
+      Serial.println(F("g"));
       
 
       // Ventil abschalten
       digitalWrite(switchPinVentil, LOW); 
       int offTime = millis();
-      Serial.println("Dauer des Vorgangs: ");
+      Serial.println(F("Dauer des Vorgangs: "));
       Serial.println(offTime - onTime);
-      Serial.println("ms");
+      Serial.println(F("ms"));
       
       setBinaryPins(0);
 
     } else {
-      Serial.println("!!! Es wurden nicht alle Parameter zum Schalten angegeben !!!");
+      Serial.println(F("!!! Es wurden nicht alle Parameter zum Schalten angegeben !!!"));
     }
     
 }
@@ -449,10 +482,6 @@ float refreshWeight(){
  * und gibt die entsprechende Zeile auf dem Serial-Monitor aus
  */
 char * readResponse(){
-  boolean reading = false;
-  char *p_ret = (char*)malloc(sizeof(char)*11);
-  int i = 0;
-
   unsigned long startTime = millis();
 
   Serial.println(F("Waiting for Server"));
@@ -461,38 +490,59 @@ char * readResponse(){
   };
   Serial.println(F("Connected to PI-Interface"));
 
-  while (interfaceClient.available()) {
-    char c = interfaceClient.read(); 
-    Serial.print(c);
-    
-    if (c == ']'){
-      reading = false;
-    }
-    
-    if(reading){
-      *(p_ret+i) = c;
-      i++;  
-   }
-    
-    if (c == '['){
-      reading = true;
-    }    
-    
-  }
-
-  *(p_ret+i)='\0';  
+  char *p_ret = readFromClientInterface(interfaceClient);
 
   Serial.println();
-  Serial.print(F(">"));
-  Serial.print(p_ret);
-  Serial.println(F("<"));
+  Serial.println(p_ret);
+
   
   return p_ret;
 }
 
 
 
+char* readFromClientInterface(EthernetClient client){
+  char *ret = (char*)malloc(sizeof(char)*11);
+  boolean reading = false;
+  int i = 0;
 
+  while (client.available()) {
+    char c = client.read();     
+    
+    if (c == ']'){
+      reading = false;
+    }
+   
+    if(reading){
+      *(ret+i) = c;
+      i++;  
+   }
+    
+    if (c == '['){
+      reading = true;
+    }    
+  }
+  *(ret+i)='\0';  
+  
+  return ret;
+}
+
+
+char* readFromClient(EthernetClient client){
+  char *ret = (char*)malloc(sizeof(char)*11);
+  int i = 0;
+
+  while (client.available()) {
+    char c = client.read(); 
+    *(ret+i) = c;
+    i++;  
+  }
+
+  *(ret+i)='\0';  
+
+
+  return ret;
+}
 
 
 // ---------------------------------------
@@ -508,96 +558,33 @@ char* int2bin(unsigned int x)
 
 
 
-
-
-
-// ---------------------------------------
-//   Strings (im Flash-Speicher abgelegt)
-// ---------------------------------------
-void initStrings(){
-                           htmlHeader = F("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n");
-
-                           htmlHead1 = F("<html><head>"
-                                         "<title>Barmonkey</title>"
-                                         "<style type=\"text/css\">"
-                                         "body{font-family:sans-serif}"
-                                         "h1{font-size:25pt;}"
-                                         "p{font-size:20pt;}"
-                                         "*{font-size:pt}"
-                                         "a{color:#abfb9c;}"
-                                         "</style>"
-                                         "</head><body text=\"white\" bgcolor=\"#494949\">");
-                
-                           htmlHead2 = F("<center>"
-                                         "<hr><h2>Barmonkey</h2><hr>"
-                                         "<span style=\"position: absolute;right: 30px; bottom: 20px; \">Developed by Daniel Scheidler</span>");
-
-                           htmlBackTail = F("<br/><a  href=\"javascript:history.back()\">Zur&uumlck!</a><br/><br/>");
-
-                           htmlFooter1 = F("<br/><a  style=\"position: absolute;left: 30px; bottom: 20px; \"  href=\"/\">Zur&uuml;ck zum Hauptmen&uuml;</a><br/><br/>"
-                                          "<div width=\"200\" height=\"18\"  style=\"position: absolute;left: 30px; bottom: 50px; \"> <b>Gewicht:</b>");
-    
-                           htmlFooter2 =  F("g</div></center>");
-
-                           htmlTail =    F("</body></html>");
-    
-                           htmlTail2 =     F("</center></body></html>");  
-
-                           htmlParamError = F("<br><font color=\"red\">Die gültigen Parameter lauten <b>schalte</b> und <b>menge</b></font><br>"
-                                             "<br><br><b>Beispiel um den Anschluss 4 für eine Sekunde ein zu schalten:</b><br>"
-                                             "<br><i>http://arduino_url/rawCmd?schalte=4&menge=10</i>");
-
-                           trtd180 = F("<tr><td width=\"400\" align=\"right\">");
-
-                           tdtd = F("</td><td><input maxlength=\"10\" type=\"password\" name=\"");
-
-                           tdtr = F("\"/></td></tr>");
-
-                           submit =  F("</tbody></table><br/>"
-                                       "<input type='submit' value='Abschicken'/></form>");
-
-                           posttable = F("method='post'>"
-                                       "<table cellpadding=\"2\" border=\"1\" rules=\"rows\" frame=\"box\" bordercolor=\"white\" width=\"500\">"
-                                       "<thead><b>");
-
-
-                           htmlAnschlussCombo = F("<b>Anschluss: </b>"
-                                                  "<select name=\"schalte\" size=\"1\" > "
-                                                  "  <option value=\"1\">Anschluss 1</option>"
-                                                  "  <option value=\"2\">Anschluss 2</option>"
-                                                  "  <option value=\"3\">Anschluss 3</option>"
-                                                  "  <option value=\"4\">Anschluss 4</option>"
-                                                  "  <option value=\"5\">Anschluss 5</option>"
-                                                  "  <option value=\"6\">Anschluss 6</option>"
-                                                  "  <option value=\"7\">Anschluss 7</option>"
-                                                  "  <option value=\"8\">Anschluss 8</option>"
-                                                  "  <option value=\"9\">Anschluss 9</option>"
-                                                  "  <option value=\"10\">Anschluss 10</option>"
-                                                  "  <option value=\"11\">Anschluss 11</option>"
-                                                  "  <option value=\"12\">Anschluss 12</option>"
-                                                  "  <option value=\"13\">Anschluss 13</option>"
-                                                  "  <option value=\"14\">Anschluss 14</option>"
-                                                  "  <option value=\"15\">Anschluss 15</option>"
-                                                  "  <option value=\"16\">Anschluss 16</option>"
-                                                  "</select>");
-
-                           htmlMengeCombo = F("<b>Menge: </b>"
-                                              "<select name=\"menge\" size=\"1\" > "
-                                              "  <option value=\"5\">5 ml</option>"
-                                              "  <option value=\"10\">10 ml</option>"
-                                              "  <option value=\"15\">15 ml</option>"
-                                              "  <option value=\"20\">20 ml</option>"
-                                              "  <option value=\"25\">25 ml</option>"
-                                              "  <option value=\"30\">30 ml</option>"
-                                              "  <option value=\"35\">35 ml</option>"
-                                              "  <option value=\"40\">40 ml</option>"
-                                              "  <option value=\"45\">45 ml</option>"
-                                              "  <option value=\"50\">50 ml</option>"
-                                              "  <option value=\"60\">60 ml</option>"
-                                              "  <option value=\"70\">70 ml</option>"
-                                              "  <option value=\"80\">80 ml</option>"
-                                              "  <option value=\"90\">90 ml</option>"
-                                              "  <option value=\"100\">100 ml</option>"
-                                              "</select>");
- 
+void outputNoNewLine(const __FlashStringHelper *text){
+   Serial.print(text);
+   //tft.print(text);
 }
+
+void output(const __FlashStringHelper *text){
+   Serial.println(text);
+   //tft.print(text);
+}
+
+void outputNoNewLine(char *text){
+   Serial.print(text);
+   //tft.print(text);
+}
+
+void output(char *text){
+   Serial.println(text);
+   //tft.print(text);
+}
+
+
+
+  
+     
+   
+  
+
+
+
+  
