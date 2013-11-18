@@ -44,10 +44,10 @@ const int switchPinPressure =  2;
 const int switchPinVentil   =  3;
 
 // 4 Pins für Binärwert
-const int switchPin1        =  4;
-const int switchPin2        =  5;
-const int switchPin4        =  6;
-const int switchPin8        =  7;
+const int switchBinaryPin1        =  4;
+const int switchBinaryPin2        =  5;
+const int switchBinaryPin4        =  6;
+const int switchBinaryPin8        =  7;
 
 // Variablen für Wiege-Funktion
 float tara;
@@ -62,6 +62,10 @@ int anzahlMittelung = 300;
 // Variablen für Netzwerkdienste
 IPAddress pi_adress(192, 168, 1, 16);
 
+char* rawCmdAnschluss;
+char* rawCmdMenge;
+
+
 EthernetServer HttpServer(80); 
 EthernetClient interfaceClient;
 
@@ -74,7 +78,8 @@ EthernetClient interfaceClient;
 // Option 1: use any pins but a little slower
 Adafruit_ST7735 tft = Adafruit_ST7735(cs, dc, mosi, sclk, rst);
 
-
+const __FlashStringHelper * freeMem;
+const __FlashStringHelper * htmlHeader;
 const __FlashStringHelper * htmlHead;
 const __FlashStringHelper * htmlFooter;
 
@@ -108,7 +113,15 @@ void setup() {
     192, 168, 1, 1  };
   unsigned char mask[] = {
     255, 255, 255, 0  };
-    
+  // Serial initialisieren
+  Serial.begin(9600);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for Leonardo only
+  }
+  Serial.println(F("Barmonkey v1"));
+  Serial.println();
+  
+  // TFT initialisieren
   tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
   tft.fillScreen(ST7735_BLACK);
   
@@ -116,12 +129,7 @@ void setup() {
   tftout("Barmonkey", ST7735_GREEN, 10, 5);
   tft.setTextSize(1);
 
-  Serial.begin(9600);
-  while (!Serial) {
-    ; // wait for serial port to connect. Needed for Leonardo only
-  }
-  Serial.println(F("Barmonkey v1"));
-  Serial.println();
+  // Netzwerk initialisieren
   Ethernet.begin(mac, ip, dns, gate, mask);
   HttpServer.begin();
 
@@ -132,21 +140,23 @@ void setup() {
 
   tft.fillRoundRect(10, 80, 110, 17, 3, ST7735_GREEN);
   tftout("Speicher: " , ST7735_RED, 15, 85);
+  tft.fillRoundRect(10, 100, 110, 17, 3, ST7735_GREEN);
+  tftout("Gewicht: ", ST7735_RED, 15, 105);
 
-  // Binär-Ausgabe Pins festlegen   
-  pinMode(switchPin1,        OUTPUT);
-  pinMode(switchPin2,        OUTPUT);
-  pinMode(switchPin4,        OUTPUT);
-  pinMode(switchPin8,        OUTPUT);
+  // PINs einrichten
+  pinMode(switchBinaryPin1,        OUTPUT);
+  pinMode(switchBinaryPin2,        OUTPUT);
+  pinMode(switchBinaryPin4,        OUTPUT);
+  pinMode(switchBinaryPin8,        OUTPUT);
 
   pinMode(switchPinVentil,   OUTPUT);
   pinMode(switchPinPressure, OUTPUT);
 
   pinMode(weightPin,         INPUT);
 
+  // Waage initialisieren
   doTara();
   faktor = (eichWert - tara) /  eichGewicht;  
-
 
   initStrings();
 }
@@ -165,11 +175,9 @@ void setup() {
  */
 void loop() {
   float sensorValue = refreshWeight();
-  Serial.print(F("Freier Speicher: "));
-  Serial.println(freeMemory());     
-
+  tftOutFreeMem();
   EthernetClient client = HttpServer.available();
-  delay(300);
+  delay(200);
 
   if (client) {
     digitalWrite(3, HIGH);
@@ -179,6 +187,7 @@ void loop() {
       if(client.available()){
         Serial.println(F("Website anzeigen"));
         showWebsite(client);
+        tftOutFreeMem();
         delay(200);
         client.stop();
 
@@ -188,8 +197,10 @@ void loop() {
   }
   delay(500);
 
-  Serial.println(freeMemory());     
+}
 
+
+void tftOutFreeMem(){
   tft.fillRoundRect(65, 80, 45, 17, 3, ST7735_GREEN);
 
   tft.setCursor(70, 85);
@@ -197,8 +208,13 @@ void loop() {
   tft.print(freeMemory());
 }
 
+void tftOutGewicht(){
+  tft.fillRoundRect(65, 100, 45, 17, 3, ST7735_GREEN);
 
-
+  tft.setCursor(70, 105);
+  tft.setTextColor(ST7735_MAGENTA);
+  tft.print(masse);
+}
 
 
 // ---------------------------------------
@@ -210,10 +226,11 @@ void loop() {
  */
 void showWebsite(EthernetClient client){
   char * HttpFrame = readFromClient(client);
-  boolean pageFound = false;
-  Serial.println(HttpFrame);
+  delay(200);
   
-
+  boolean pageFound = false;
+//  Serial.println(HttpFrame);
+  
   char *ptr = strstr(HttpFrame, "/favicon.ico");
   if(ptr){
     pageFound = true;
@@ -225,7 +242,7 @@ void showWebsite(EthernetClient client){
   } 
   ptr = strstr(HttpFrame, "/rawCmd");
   if(!pageFound && ptr){
-    runRawCmdWebpage(client);
+    runRawCmdWebpage(client, HttpFrame);
     pageFound = true;
   } 
   ptr = strstr(HttpFrame, "/zubereiten");
@@ -233,7 +250,6 @@ void showWebsite(EthernetClient client){
     runZubereitungWebpage(client);
     pageFound = true;
   } 
-  delay(200);
 
   ptr = strstr(HttpFrame, "/&%/&%/");   // Sonst gibts ein Speicherproblem
 
@@ -242,14 +258,10 @@ void showWebsite(EthernetClient client){
   free(HttpFrame);
   HttpFrame=NULL;
 
-
  if(!pageFound){
     runIndexWebpage(client);
   }
 }
-
-
-
 
 // ---------------------------------------
 //     Webseiten
@@ -271,14 +283,84 @@ void  runIndexWebpage(EthernetClient client){
 /**
  * rawCmd anzeigen
  */
-void  runRawCmdWebpage(EthernetClient client){
-  showHead(client);
+void  runRawCmdWebpage(EthernetClient client, char* HttpFrame){
 
-  client.print(F("<h4>Manuelle Schaltung</h4><br/>"
-    "<a href='/rawCmd'>Manuelle Schaltung</a><br>"));
+  if (atoi(rawCmdAnschluss)!=0  && atoi(rawCmdMenge)!=0 ) {
+    postRawCmd(client, rawCmdAnschluss, rawCmdMenge);
+    return;
+  }
+
+
+  showHead(client);
+  
+  client.println(F(  "<h4>Manuelle Schaltung</h4><br/>"
+                     "<form action='/rawCmd'>"));
+
+  client.println(F( "<b>Anschluss: </b>"
+                    "<select name=\"schalte\" size=\"1\" > "
+                    "  <option value=\"1\">Anschluss 1</option>"
+                    "  <option value=\"2\">Anschluss 2</option>"
+                    "  <option value=\"3\">Anschluss 3</option>"
+                    "  <option value=\"4\">Anschluss 4</option>"
+                    "  <option value=\"5\">Anschluss 5</option>"
+                    "  <option value=\"6\">Anschluss 6</option>"
+                    "  <option value=\"7\">Anschluss 7</option>"
+                    "  <option value=\"8\">Anschluss 8</option>"
+                    "  <option value=\"9\">Anschluss 9</option>"
+                    "  <option value=\"10\">Anschluss 10</option>"
+                    "  <option value=\"11\">Anschluss 11</option>"
+                    "  <option value=\"12\">Anschluss 12</option>"
+                    "  <option value=\"13\">Anschluss 13</option>"
+                    "  <option value=\"14\">Anschluss 14</option>"
+                    "  <option value=\"15\">Anschluss 15</option>"
+                    "  <option value=\"16\">Anschluss 16</option>"
+                    "</select>" ));
+      
+      client.println(F( "<b>Schaltdauer: </b>"
+                    "<select name=\"menge\" size=\"1\" > "
+                    "  <option value=\"5\">5g</option>"
+                    "  <option value=\"10\">10g</option>"
+                    "  <option value=\"15\">15g</option>"
+                    "  <option value=\"20\">20g</option>"
+                    "  <option value=\"25\">25g</option>"
+                    "  <option value=\"30\">30g</option>"
+                    "  <option value=\"35\">35g</option>"
+                    "  <option value=\"40\">40g</option>"
+                    "  <option value=\"45\">45g</option>"
+                    "  <option value=\"50\">50g</option>"
+                    "  <option value=\"60\">60g</option>"
+                    "  <option value=\"70\">70g</option>"
+                    "  <option value=\"80\">80g</option>"
+                    "  <option value=\"90\">90g</option>"
+                    "  <option value=\"100\">100g</option>"
+                    "  <option value=\"150\">150g</option>"
+                    "  <option value=\"200\">200g</option>"
+                    "</select>"));
+     
+      client.println(F("<input type='submit' value='Abschicken'/>"
+                       "</form>"));
 
   showFooter(client);
 }
+
+
+void postRawCmd(EthernetClient client, char* anschluss, char* einheiten){
+
+  showHead(client);
+  
+  client.print(F(  "<h4>Schaltvorgang</h4><br/>"
+                     "Es werden "));
+  client.print(rawCmdMenge);  
+  client.print(F(  "ml aus Anschluss "));
+  client.print(rawCmdAnschluss);
+  client.println(F(  " ausgegeben.<br/>"));
+  zutatAbfuellen(anschluss, einheiten);
+
+  showFooter(client);
+  rawCmdAnschluss = '\0';
+  rawCmdMenge = '\0';
+}
+
 
 
 /**
@@ -302,7 +384,7 @@ void  runZubereitungWebpage(EthernetClient client){
 // ---------------------------------------
 
 void showHead(EthernetClient client){
-  client.println(F("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n"));
+  client.println(htmlHeader);
 
   client.println(htmlHead);
 }
@@ -328,6 +410,8 @@ void tftout(char *text, uint16_t color, uint16_t x, uint16_t y) {
 }
 
 void initStrings(){
+  htmlHeader = F("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n");
+  
   htmlHead = F("<html><head>"
     "<title>Barmonkey</title>"
     "<style type=\"text/css\">"
@@ -343,8 +427,9 @@ void initStrings(){
     "<a  style=\"position: absolute;left: 30px; bottom: 20px; \"  href=\"/\">Zur&uuml;ck zum Hauptmen&uuml;</a>"
     "<span style=\"position: absolute;right: 30px; bottom: 20px; \">Entwickelt von Daniel Scheidler und Julian Theis</span>"
     "</body></html>");
+    
+    freeMem = F("Freier Speicher: ");
 }
-
 
 
 
@@ -352,13 +437,13 @@ void initStrings(){
 //     Ventilsteuerung - Hilfsmethoden
 // ---------------------------------------
 /**
- * 4 Pins  (switchPin1-switchPin4)
+ * 4 Pins  (switchBinaryPin1-switchBinaryPin4)
  * Somit sind Zahlen zwischen 0 und 15 gueltig.
  */
 void setBinaryPins(byte value){
   String myStr;
   byte pins[] = {
-    switchPin1, switchPin2, switchPin4, switchPin8  };
+    switchBinaryPin1, switchBinaryPin2, switchBinaryPin4, switchBinaryPin8  };
 
   for (byte i=0; i<numPins; i++) {
     byte state = bitRead(value, i);
@@ -381,7 +466,12 @@ void setBinaryPins(byte value){
  */
 void zutatAbfuellen(char anschluss[20], char einheiten[20]){
   // SCHALTVORGANG
-  if (strlen(anschluss) && strlen(einheiten) ) {
+
+  Serial.print(F("Anschluss: "));
+  Serial.println(anschluss);
+  Serial.print(F("Menge: "));
+  Serial.println(einheiten);
+  if (atoi(anschluss)!=0  && atoi(einheiten)!=0 ) {
     int onTime = millis();
     // Selektion des Ventils
     setBinaryPins(atoi(anschluss)-1);
@@ -559,6 +649,8 @@ float refreshWeight(){
   Gewicht = ((sensorValue-tara)/faktor);  //Gleichung, die vorher berechnet werden muss
   masse = Gewicht; 
 
+  tftOutGewicht();
+  
   return masse;
 }
 
@@ -570,7 +662,7 @@ float refreshWeight(){
 //     Ethernet - Hilfsmethoden
 // ---------------------------------------
 /**
- * Liest die Rückgabe des Webinterfaces aus 
+ * Liefert die Rückgabe des Webinterfaces (PI) zurück 
  * und gibt die entsprechende Zeile auf dem Serial-Monitor aus
  */
 char * readResponse(){
@@ -587,7 +679,6 @@ char * readResponse(){
   Serial.println();
   Serial.println(p_ret);
 
-
   return p_ret;
 }
 
@@ -596,6 +687,7 @@ char * readResponse(){
 char* readFromClientInterface(EthernetClient client){
   char *ret = (char*)malloc(sizeof(char)*11);
   boolean reading = false;
+
   int i = 0;
 
   while (client.available()) {
@@ -613,6 +705,7 @@ char* readFromClientInterface(EthernetClient client){
     if (c == '['){
       reading = true;
     }    
+
   }
   *(ret+i)='\0';  
 
@@ -621,14 +714,82 @@ char* readFromClientInterface(EthernetClient client){
 
 
 char* readFromClient(EthernetClient client){
-  char *ret = (char*)malloc(sizeof(char)*11);
+  char *ret = (char*)malloc(sizeof(char)*100);
+  char *tmpName = (char*)malloc(sizeof(char)*20);
+  char *tmpVal = (char*)malloc(sizeof(char)*20);
+  
   int i = 0;
+  int iname = 0;
+  int ivalue = 0;  
+  boolean paramNameReading = false;
+  boolean paramValueReading = false;
+  int     paramIndex = 0;
 
   while (client.available()) {
+
     char c = client.read(); 
-    if( c=='\n' ){
+    if( c=='\n'){
+      if(paramValueReading){
+        *(tmpVal+ivalue) = '\0';
+        paramValueReading = false;
+      }
+      if(paramNameReading){
+        *(tmpName+iname) = '\0';
+        paramNameReading = false;
+      }
+
+      pruefeURLParameter(tmpName, "5");
       break;
     }
+   
+    if (c == '='){
+      *(tmpName+iname) = '\0';
+      iname = 0;
+      paramNameReading = false;
+    }
+
+    if (c == '&' || c == ' '){
+      *(tmpVal+ivalue) = '\0';
+      ivalue = 0;  
+      iname = 0;
+      paramValueReading = false;
+      paramNameReading = false;
+    }
+
+
+    if(paramNameReading){
+      *(tmpName+iname) = c;
+      Serial.print(c);
+
+      iname++;  
+    }
+    
+    delay(20);
+    
+    if(paramValueReading){
+      *(tmpVal+ivalue) = c;
+      Serial.print(c);
+
+      ivalue++;  
+    }
+
+
+
+    if (c == '?'){
+      paramNameReading = true;
+    }
+    if (c == '='){
+      paramValueReading = true;
+    }
+    if (c == '&'){
+      paramNameReading = true;
+      pruefeURLParameter(tmpName, "5");
+      paramIndex++;
+      iname = 0;
+      ivalue = 0; 
+    }
+
+    delay(20);
 
     *(ret+i) = c;
     i++;  
@@ -636,8 +797,23 @@ char* readFromClient(EthernetClient client){
 
   *(ret+i)='\0';  
 
-
+  free(tmpName);
+  tmpName=NULL;
+  
+  Serial.println();
+  Serial.println(ret);
   return ret;
+}
+
+
+void pruefeURLParameter(char* tmpName, char* value){
+  if(strcmp(tmpName, "schalte")){
+    rawCmdAnschluss = value;
+  }
+  
+  if(strcmp(tmpName, "menge")){
+    rawCmdMenge = value;
+  }
 }
 
 
