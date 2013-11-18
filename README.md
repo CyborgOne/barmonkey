@@ -1,7 +1,10 @@
-barmonkey_1
+barmonkey
 ===========
 
-Barmonkey für Arduino 1.0 Software (incl TFT)
+Barmonkey für Arduino 1.0.5 Software (incl TFT)
+
+http://cyborgone.github.io/barmonkey/
+
 
 Das Sketch für den Arduino funktioniert nur in Kombination mit einem erreichbaren Webserver der das barmonkey_ui Projekt hostet. 
 Dieses beinhaltet eine Webseite incl. einer MySql-Datenbank über die die Benutzeroberfläche und die Rezeptdatenbank bereitgestellt werden.
@@ -17,6 +20,7 @@ Es gibt weder eine Garantie für Funktionalität, noch für Support, Updates ode
 Wer jedoch selber damit rum spielen möchte, darf das natürlich gerne tun.
 
 ----------------------------------
+
 
 Pin-Belegung:
 ===========
