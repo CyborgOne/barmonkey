@@ -255,21 +255,21 @@ void showWebsite(EthernetClient client){
   boolean pageFound = false;
 //  Serial.println(HttpFrame);
   
-  char *ptr = strstr(HttpFrame, "/favicon.ico");
+  char *ptr = strstr(HttpFrame, "favicon.ico");
   if(ptr){
     pageFound = true;
   }
-  ptr = strstr(HttpFrame, "/index.html");
+  ptr = strstr(HttpFrame, "index.html");
   if (!pageFound && ptr) {
     runIndexWebpage(client);
     pageFound = true;
   } 
-  ptr = strstr(HttpFrame, "/rawCmd");
+  ptr = strstr(HttpFrame, "rawCmd");
   if(!pageFound && ptr){
-    runRawCmdWebpage(client, HttpFrame);
+    runRawCmdWebpage(client);
     pageFound = true;
   } 
-  ptr = strstr(HttpFrame, "/zubereiten");
+  ptr = strstr(HttpFrame, "zubereiten");
   if(!pageFound && ptr){
     runZubereitungWebpage(client);
     pageFound = true;
@@ -308,7 +308,7 @@ void  runIndexWebpage(EthernetClient client){
 /**
  * rawCmd anzeigen
  */
-void  runRawCmdWebpage(EthernetClient client, char* HttpFrame){
+void  runRawCmdWebpage(EthernetClient client){
   if (atoi(rawCmdAnschluss)!=0  && atoi(rawCmdMenge)!=0 ) {
     postRawCmd(client, rawCmdAnschluss, rawCmdMenge);
     return;
@@ -759,13 +759,20 @@ char* readFromClient(EthernetClient client){
             switch (cnt) {
               case 0:
                 strcpy(pageName, paramsTmp);
+                pageName[sizeof(pageName)+1]='\0';
+
                 break;
               case 1:
                 strcpy(paramName, paramsTmp);
+                paramName[sizeof(pageName)+1]='\0';
+
                 break;
               case 2:
                 strcpy(paramValue, paramsTmp);
+                paramValue[sizeof(pageName)+1]='\0';
+
                 pruefeURLParameter(paramName, paramValue);
+
                 break;
             }
             paramsTmp = strtok(NULL, " ?=&/");
@@ -786,7 +793,7 @@ char* readFromClient(EthernetClient client){
 void pruefeURLParameter(char* tmpName, char* value){
   if(strcmp(tmpName, "schalte")==0 && strcmp(value, "")!=0){
     strcpy(rawCmdAnschluss, value);
-    *(rawCmdAnschluss+1)='\0';
+    rawCmdAnschluss[sizeof(rawCmdAnschluss)+1]='\0';
     
     Serial.print(F("OK Anschluss: "));
     Serial.print(value);
@@ -796,7 +803,7 @@ void pruefeURLParameter(char* tmpName, char* value){
   
   if(strcmp(tmpName, "menge")==0 && strcmp(value, "")!=0){
     strcpy(rawCmdMenge, value);
-    *(rawCmdMenge+1)='\0';
+    rawCmdMenge[sizeof(rawCmdMenge)+1]
 
     Serial.print(F("OK Menge: "));
     Serial.print(value);
