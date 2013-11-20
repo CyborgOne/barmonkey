@@ -62,8 +62,8 @@ int anzahlMittelung = 300;
 // Variablen für Netzwerkdienste
 IPAddress pi_adress(192, 168, 1, 16);
 
-char* rawCmdAnschluss = (char*)malloc(sizeof(char)*20);
-char* rawCmdMenge = (char*)malloc(sizeof(char)*20);
+char* rawCmdAnschluss;
+char* rawCmdMenge;
 const int MAX_BUFFER_LEN = 50; // max characters in page name/parameter 
 char buffer[MAX_BUFFER_LEN+1]; // additional character for terminating null
 
@@ -90,6 +90,11 @@ void(* resetFunc) (void) = 0;
 unsigned long resetMillis;
 boolean resetSytem = false;
 // --------------- END - Reset stuff -----------------------
+
+
+
+
+
 
 
 
@@ -163,6 +168,11 @@ void setup() {
   initStrings();
 }
 
+
+
+
+
+
 /**
  * LOOP
  * 
@@ -176,6 +186,8 @@ void setup() {
  *        und Verbindung beenden.
  */
 void loop() {
+  char* rawCmdAnschluss = (char*)malloc(20);
+  char* rawCmdMenge = (char*)malloc(20);
 
   float sensorValue = refreshWeight();
   tftOutFreeMem();
@@ -199,10 +211,17 @@ void loop() {
       }
     }
   }
+  
+  free(rawCmdAnschluss);
+  free(rawCmdMenge);
+  
   delay(500);
   // Gecachte URL-Parameter leeren
 
 }
+
+
+
 
 
 void tftOutFreeMem(){
@@ -586,6 +605,7 @@ void rezeptZubereiten(char* rezept) {
       char * interfacePreis    = interfaceValues;
       interfaceValues          = strtok(NULL, ";");
 
+    
       output(F("Zubereitung:"));
 
       outputNoNewLine(F("Id: "));
@@ -599,6 +619,9 @@ void rezeptZubereiten(char* rezept) {
 
       outputNoNewLine(F("Preis: "));
       outputNoNewLine(interfacePreis);
+      
+      free(interfaceString);
+
     } 
     else {
       Serial.println(F("Verbindungsfehler bei dem Versuch das Rezept abzurufen."));
