@@ -186,8 +186,8 @@ void setup() {
  *        und Verbindung beenden.
  */
 void loop() {
-  char* rawCmdAnschluss = (char*)malloc(20);
-  char* rawCmdMenge = (char*)malloc(20);
+  rawCmdAnschluss = (char*)malloc(20);
+  rawCmdMenge = (char*)malloc(20);
 
   float sensorValue = refreshWeight();
   tftOutFreeMem();
