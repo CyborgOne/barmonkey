@@ -62,8 +62,8 @@ int anzahlMittelung = 300;
 // Variablen für Netzwerkdienste
 IPAddress pi_adress(192, 168, 1, 16);
 
-char* rawCmdAnschluss;
-char* rawCmdMenge;
+char* rawCmdAnschluss = (char*)malloc(sizeof(char)*20);
+char* rawCmdMenge = (char*)malloc(sizeof(char)*20);
 const int MAX_BUFFER_LEN = 50; // max characters in page name/parameter 
 char buffer[MAX_BUFFER_LEN+1]; // additional character for terminating null
 
@@ -763,6 +763,8 @@ char* readFromClient(EthernetClient client){
 void pruefeURLParameter(char* tmpName, char* value){
   if(strcmp(tmpName, "schalte")==0 && strcmp(value, "")!=0){
     strcpy(rawCmdAnschluss, value);
+    *(rawCmdAnschluss+1)='\0';
+    
     Serial.print(F("OK Anschluss: "));
     Serial.print(value);
     Serial.print(F("="));
@@ -771,6 +773,7 @@ void pruefeURLParameter(char* tmpName, char* value){
   
   if(strcmp(tmpName, "menge")==0 && strcmp(value, "")!=0){
     strcpy(rawCmdMenge, value);
+    *(rawCmdMenge+1)='\0';
 
     Serial.print(F("OK Menge: "));
     Serial.print(value);
@@ -814,4 +817,6 @@ void output(char *text){
   Serial.println(text);
   tft.println(text);
 }
+
+
 
