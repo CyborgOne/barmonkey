@@ -64,6 +64,8 @@ IPAddress pi_adress(192, 168, 1, 16);
 
 char* rawCmdAnschluss;
 char* rawCmdMenge;
+const int MAX_BUFFER_LEN = 50; // max characters in page name/parameter 
+char buffer[MAX_BUFFER_LEN+1]; // additional character for terminating null
 
 
 EthernetServer HttpServer(80); 
@@ -174,15 +176,17 @@ void setup() {
  *        und Verbindung beenden.
  */
 void loop() {
+
   float sensorValue = refreshWeight();
   tftOutFreeMem();
+
+
   EthernetClient client = HttpServer.available();
   delay(200);
 
   if (client) {
     digitalWrite(3, HIGH);
     
-    int n=0;
     while (client.connected()) {
       if(client.available()){
         Serial.println(F("Website anzeigen"));
@@ -190,12 +194,13 @@ void loop() {
         tftOutFreeMem();
         delay(200);
         client.stop();
-
+  
         digitalWrite(3, LOW);
       }
     }
   }
   delay(500);
+  // Gecachte URL-Parameter leeren
 
 }
 
@@ -261,6 +266,7 @@ void showWebsite(EthernetClient client){
  if(!pageFound){
     runIndexWebpage(client);
   }
+  
 }
 
 // ---------------------------------------
@@ -284,7 +290,6 @@ void  runIndexWebpage(EthernetClient client){
  * rawCmd anzeigen
  */
 void  runRawCmdWebpage(EthernetClient client, char* HttpFrame){
-
   if (atoi(rawCmdAnschluss)!=0  && atoi(rawCmdMenge)!=0 ) {
     postRawCmd(client, rawCmdAnschluss, rawCmdMenge);
     return;
@@ -357,8 +362,6 @@ void postRawCmd(EthernetClient client, char* anschluss, char* einheiten){
   zutatAbfuellen(anschluss, einheiten);
 
   showFooter(client);
-  rawCmdAnschluss = '\0';
-  rawCmdMenge = '\0';
 }
 
 
@@ -391,11 +394,12 @@ void showHead(EthernetClient client){
 
 
 void showFooter(EthernetClient client){
-  client.print(F("<div width=\"200\" height=\"18\"  style=\"position: absolute;left: 30px; bottom: 50px; \"> <b>Gewicht:</b>"));
+  client.print(F("<div width=\"200\" height=\"18\"  style=\"position: absolute;left: 30px; bottom: 50px; \"> <b>Gewicht:</b> "));
   client.print(masse);
   client.println(F("g<br/><br/>"));
-  client.println(F("Freier Speicher: "));                              
+  client.println(F("<b>Freier Speicher:</b> "));                              
   client.println(freeMemory()); 
+  client.println(F("</div>"));
 
   client.print(htmlFooter);
 }
@@ -705,7 +709,6 @@ char* readFromClientInterface(EthernetClient client){
     if (c == '['){
       reading = true;
     }    
-
   }
   *(ret+i)='\0';  
 
@@ -714,106 +717,66 @@ char* readFromClientInterface(EthernetClient client){
 
 
 char* readFromClient(EthernetClient client){
-  char *ret = (char*)malloc(sizeof(char)*100);
-  char *tmpName = (char*)malloc(sizeof(char)*20);
-  char *tmpVal = (char*)malloc(sizeof(char)*20);
-  
-  int i = 0;
-  int iname = 0;
-  int ivalue = 0;  
-  boolean paramNameReading = false;
-  boolean paramValueReading = false;
-  int     paramIndex = 0;
+  char paramName[10];
+  char paramValue[10];
+  char pageName[10];
+  if (client) {
+    while (client.connected()) {
+      if (client.available()) {
+        memset(buffer,0, sizeof(buffer)); // clear the buffer
 
-  while (client.available()) {
-
-    char c = client.read(); 
-    if( c=='\n'){
-      if(paramValueReading){
-        *(tmpVal+ivalue) = '\0';
-        paramValueReading = false;
-      }
-      if(paramNameReading){
-        *(tmpName+iname) = '\0';
-        paramNameReading = false;
-      }
-
-      pruefeURLParameter(tmpName, "5");
+        client.find("/");
+        if(client.readBytesUntil(' ', buffer, sizeof(buffer))){ 
+          Serial.print(F("Komplette URL: "));
+          Serial.println(buffer);
+          
+          char* paramsTmp = strtok(buffer, " ?=&/");
+          int cnt = 0;
+          while (paramsTmp) {
+            switch (cnt) {
+              case 0:
+                strcpy(pageName, paramsTmp);
+                break;
+              case 1:
+                strcpy(paramName, paramsTmp);
+                break;
+              case 2:
+                strcpy(paramValue, paramsTmp);
+                pruefeURLParameter(paramName, paramValue);
+                break;
+            }
+            paramsTmp = strtok(NULL, " ?=&/");
+            cnt=cnt==0?1:cnt==1?2:1;
+          }
+        } else {
+          return buffer; 
+        }
+      }// end if Client available
       break;
-    }
-   
-    if (c == '='){
-      *(tmpName+iname) = '\0';
-      iname = 0;
-      paramNameReading = false;
-    }
+    }// end while Client connected
+  } 
 
-    if (c == '&' || c == ' '){
-      *(tmpVal+ivalue) = '\0';
-      ivalue = 0;  
-      iname = 0;
-      paramValueReading = false;
-      paramNameReading = false;
-    }
-
-
-    if(paramNameReading){
-      *(tmpName+iname) = c;
-      Serial.print(c);
-
-      iname++;  
-    }
-    
-    delay(20);
-    
-    if(paramValueReading){
-      *(tmpVal+ivalue) = c;
-      Serial.print(c);
-
-      ivalue++;  
-    }
-
-
-
-    if (c == '?'){
-      paramNameReading = true;
-    }
-    if (c == '='){
-      paramValueReading = true;
-    }
-    if (c == '&'){
-      paramNameReading = true;
-      pruefeURLParameter(tmpName, "5");
-      paramIndex++;
-      iname = 0;
-      ivalue = 0; 
-    }
-
-    delay(20);
-
-    *(ret+i) = c;
-    i++;  
-  }
-
-  *(ret+i)='\0';  
-
-  free(tmpName);
-  tmpName=NULL;
-  
-  Serial.println();
-  Serial.println(ret);
-  return ret;
+  return buffer;
 }
 
 
 void pruefeURLParameter(char* tmpName, char* value){
-  if(strcmp(tmpName, "schalte")){
-    rawCmdAnschluss = value;
+  if(strcmp(tmpName, "schalte")==0 && strcmp(value, "")!=0){
+    strcpy(rawCmdAnschluss, value);
+    Serial.print(F("OK Anschluss: "));
+    Serial.print(value);
+    Serial.print(F("="));
+    Serial.println(rawCmdAnschluss);    
   }
   
-  if(strcmp(tmpName, "menge")){
-    rawCmdMenge = value;
-  }
+  if(strcmp(tmpName, "menge")==0 && strcmp(value, "")!=0){
+    strcpy(rawCmdMenge, value);
+
+    Serial.print(F("OK Menge: "));
+    Serial.print(value);
+    Serial.print(F("="));
+    Serial.println(rawCmdMenge);    
+  } 
 }
 
 
@@ -851,6 +814,4 @@ void output(char *text){
   Serial.println(text);
   tft.println(text);
 }
-
-
 
