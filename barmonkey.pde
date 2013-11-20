@@ -793,8 +793,7 @@ char* readFromClient(EthernetClient client){
 void pruefeURLParameter(char* tmpName, char* value){
   if(strcmp(tmpName, "schalte")==0 && strcmp(value, "")!=0){
     strcpy(rawCmdAnschluss, value);
-    rawCmdAnschluss[sizeof(rawCmdAnschluss)+1]='\0';
-    
+
     Serial.print(F("OK Anschluss: "));
     Serial.print(value);
     Serial.print(F("="));
@@ -803,7 +802,6 @@ void pruefeURLParameter(char* tmpName, char* value){
   
   if(strcmp(tmpName, "menge")==0 && strcmp(value, "")!=0){
     strcpy(rawCmdMenge, value);
-    rawCmdMenge[sizeof(rawCmdMenge)+1]
 
     Serial.print(F("OK Menge: "));
     Serial.print(value);
