@@ -24,6 +24,8 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7735.h>
 
+int lastMem = freeMemory();
+
 // Digital-Output Pins für Ventilauswahl 
 // per Binär Wert (4 Pins = 0-15)
 const byte numPins  =  4;
@@ -62,8 +64,8 @@ int anzahlMittelung = 300;
 // Variablen für Netzwerkdienste
 IPAddress pi_adress(192, 168, 1, 16);
 
-char* rawCmdAnschluss;
-char* rawCmdMenge;
+char* rawCmdAnschluss = (char*)malloc(sizeof(char)*20);
+char* rawCmdMenge = (char*)malloc(sizeof(char)*20);
 const int MAX_BUFFER_LEN = 50; // max characters in page name/parameter 
 char buffer[MAX_BUFFER_LEN+1]; // additional character for terminating null
 
@@ -80,7 +82,6 @@ EthernetClient interfaceClient;
 // Option 1: use any pins but a little slower
 Adafruit_ST7735 tft = Adafruit_ST7735(cs, dc, mosi, sclk, rst);
 
-const __FlashStringHelper * freeMem;
 const __FlashStringHelper * htmlHeader;
 const __FlashStringHelper * htmlHead;
 const __FlashStringHelper * htmlFooter;
@@ -90,11 +91,6 @@ void(* resetFunc) (void) = 0;
 unsigned long resetMillis;
 boolean resetSytem = false;
 // --------------- END - Reset stuff -----------------------
-
-
-
-
-
 
 
 
@@ -168,11 +164,6 @@ void setup() {
   initStrings();
 }
 
-
-
-
-
-
 /**
  * LOOP
  * 
@@ -186,50 +177,47 @@ void setup() {
  *        und Verbindung beenden.
  */
 void loop() {
-  rawCmdAnschluss = (char*)malloc(20);
-  rawCmdMenge = (char*)malloc(20);
 
   float sensorValue = refreshWeight();
   tftOutFreeMem();
 
 
   EthernetClient client = HttpServer.available();
-  delay(200);
-
   if (client) {
-    digitalWrite(3, HIGH);
     
     while (client.connected()) {
       if(client.available()){
+        digitalWrite(3, HIGH);
+        
         Serial.println(F("Website anzeigen"));
         showWebsite(client);
+        
         tftOutFreeMem();
-        delay(200);
+        Serial.println(freeMemory());
+        delay(100);
         client.stop();
   
         digitalWrite(3, LOW);
       }
     }
   }
-  
-  free(rawCmdAnschluss);
-  free(rawCmdMenge);
-  
-  delay(500);
+  delay(100);
   // Gecachte URL-Parameter leeren
-
+  memset(rawCmdAnschluss,0, sizeof(rawCmdAnschluss)); // clear the buffer
+  memset(rawCmdMenge,0, sizeof(rawCmdMenge)); // clear the buffer
 }
 
 
-
-
-
 void tftOutFreeMem(){
-  tft.fillRoundRect(65, 80, 45, 17, 3, ST7735_GREEN);
+   if(lastMem != freeMemory() ){
+    lastMem = freeMemory();
 
-  tft.setCursor(70, 85);
-  tft.setTextColor(ST7735_MAGENTA);
-  tft.print(freeMemory());
+    tft.fillRoundRect(65, 80, 45, 17, 3, ST7735_GREEN);
+
+    tft.setCursor(70, 85);
+    tft.setTextColor(ST7735_MAGENTA);
+    tft.print(freeMemory());
+  }
 }
 
 void tftOutGewicht(){
@@ -249,11 +237,10 @@ void tftOutGewicht(){
  *  URL auswerten und entsprechende Seite aufrufen
  */
 void showWebsite(EthernetClient client){
-  char * HttpFrame = readFromClient(client);
+  char * HttpFrame =  readFromClient(client);
+  tftOutFreeMem();
   delay(200);
-  
   boolean pageFound = false;
-//  Serial.println(HttpFrame);
   
   char *ptr = strstr(HttpFrame, "favicon.ico");
   if(ptr){
@@ -266,7 +253,7 @@ void showWebsite(EthernetClient client){
   } 
   ptr = strstr(HttpFrame, "rawCmd");
   if(!pageFound && ptr){
-    runRawCmdWebpage(client);
+    runRawCmdWebpage(client, HttpFrame);
     pageFound = true;
   } 
   ptr = strstr(HttpFrame, "zubereiten");
@@ -274,12 +261,14 @@ void showWebsite(EthernetClient client){
     runZubereitungWebpage(client);
     pageFound = true;
   } 
+  tftOutFreeMem();
 
-  ptr = strstr(HttpFrame, "/&%/&%/");   // Sonst gibts ein Speicherproblem
+  delay(300);
+  //ptr = strstr(HttpFrame, "/&%/&%/");   // Sonst gibts ein Speicherproblem
 
-  free(ptr);
+//  free(ptr);
   ptr=NULL;
-  free(HttpFrame);
+//  free(HttpFrame);
   HttpFrame=NULL;
 
  if(!pageFound){
@@ -308,7 +297,7 @@ void  runIndexWebpage(EthernetClient client){
 /**
  * rawCmd anzeigen
  */
-void  runRawCmdWebpage(EthernetClient client){
+void  runRawCmdWebpage(EthernetClient client, char* HttpFrame){
   if (atoi(rawCmdAnschluss)!=0  && atoi(rawCmdMenge)!=0 ) {
     postRawCmd(client, rawCmdAnschluss, rawCmdMenge);
     return;
@@ -413,13 +402,12 @@ void showHead(EthernetClient client){
 
 
 void showFooter(EthernetClient client){
-  client.print(F("<div width=\"200\" height=\"18\"  style=\"position: absolute;left: 30px; bottom: 50px; \"> <b>Gewicht:</b> "));
+  client.print(F("<div  style=\"position: absolute;left: 30px; bottom: 40px; text-align:left;horizontal-align:left;\" width=200><b>Gewicht:</b> "));
   client.print(masse);
-  client.println(F("g<br/><br/>"));
+  client.println(F("g<br/>"));
   client.println(F("<b>Freier Speicher:</b> "));                              
   client.println(freeMemory()); 
-  client.println(F("</div>"));
-
+  client.print(F("</div>"));
   client.print(htmlFooter);
 }
 
@@ -446,12 +434,11 @@ void initStrings(){
     "<center>"
     "<hr><h2>Barmonkey</h2><hr>") ;
     
-    htmlFooter = F( "</div></center>"
+    htmlFooter = F( "</center>"
     "<a  style=\"position: absolute;left: 30px; bottom: 20px; \"  href=\"/\">Zur&uuml;ck zum Hauptmen&uuml;</a>"
     "<span style=\"position: absolute;right: 30px; bottom: 20px; \">Entwickelt von Daniel Scheidler und Julian Theis</span>"
     "</body></html>");
     
-    freeMem = F("Freier Speicher: ");
 }
 
 
@@ -522,6 +509,7 @@ void zutatAbfuellen(char anschluss[20], char einheiten[20]){
 
     while ((tmpVal-tmpCurrentWeight) < atoi(einheiten)){
       tmpVal = refreshWeight();
+      delay(20);
     }
 
     Serial.print(F("Abschaltung bei Menge:"));
@@ -556,8 +544,8 @@ void zutatAbfuellen(char anschluss[20], char einheiten[20]){
     // Ventil abschalten
     digitalWrite(switchPinVentil, LOW); 
     int offTime = millis();
-    Serial.println(F("Dauer des Vorgangs: "));
-    Serial.println(offTime - onTime);
+    Serial.print(F("Dauer des Vorgangs: "));
+    Serial.print(offTime - onTime);
     Serial.println(F("ms"));
 
     setBinaryPins(0);
@@ -605,7 +593,6 @@ void rezeptZubereiten(char* rezept) {
       char * interfacePreis    = interfaceValues;
       interfaceValues          = strtok(NULL, ";");
 
-    
       output(F("Zubereitung:"));
 
       outputNoNewLine(F("Id: "));
@@ -619,9 +606,6 @@ void rezeptZubereiten(char* rezept) {
 
       outputNoNewLine(F("Preis: "));
       outputNoNewLine(interfacePreis);
-      
-      free(interfaceString);
-
     } 
     else {
       Serial.println(F("Verbindungsfehler bei dem Versuch das Rezept abzurufen."));
@@ -749,37 +733,43 @@ char* readFromClient(EthernetClient client){
         memset(buffer,0, sizeof(buffer)); // clear the buffer
 
         client.find("/");
-        if(client.readBytesUntil(' ', buffer, sizeof(buffer))){ 
-          Serial.print(F("Komplette URL: "));
+        if(byte bytesReceived = client.readBytesUntil(' ', buffer, sizeof(buffer))){ 
+          buffer[bytesReceived] = '\0';
+
+          Serial.print(F("URL: "));
           Serial.println(buffer);
           
-          char* paramsTmp = strtok(buffer, " ?=&/");
-          int cnt = 0;
-          while (paramsTmp) {
-            switch (cnt) {
-              case 0:
-                strcpy(pageName, paramsTmp);
-                pageName[sizeof(pageName)+1]='\0';
-
-                break;
-              case 1:
-                strcpy(paramName, paramsTmp);
-                paramName[sizeof(pageName)+1]='\0';
-
-                break;
-              case 2:
-                strcpy(paramValue, paramsTmp);
-                paramValue[sizeof(pageName)+1]='\0';
-
-                pruefeURLParameter(paramName, paramValue);
-
-                break;
+          if(strcmp(buffer, "favicon.ico\0")){
+            char* paramsTmp = strtok(buffer, " ?=&/\r\n");
+            int cnt = 0;
+            while (paramsTmp) {
+              //Serial.print(F("Read: "));
+              //Serial.println(paramsTmp);
+              
+              switch (cnt) {
+                case 0:
+                  strcpy(pageName, paramsTmp);
+                  Serial.print(F("Domain: "));
+                  Serial.println(buffer);
+                  break;
+                case 1:
+                  strcpy(paramName, paramsTmp);
+                  Serial.print(F("Parameter: "));
+                  Serial.print(paramName);
+                  break;
+                case 2:
+                  strcpy(paramValue, paramsTmp);
+                  Serial.print(F(" = "));
+                  Serial.println(paramValue);
+                  pruefeURLParameter(paramName, paramValue);
+                  break;
+              }
+              
+              paramsTmp = strtok(NULL, " ?=&/\r\n");
+              cnt=cnt==0?1:cnt==1?2:1;
             }
-            paramsTmp = strtok(NULL, " ?=&/");
-            cnt=cnt==0?1:cnt==1?2:1;
           }
-        } else {
-          return buffer; 
+    
         }
       }// end if Client available
       break;
@@ -793,7 +783,7 @@ char* readFromClient(EthernetClient client){
 void pruefeURLParameter(char* tmpName, char* value){
   if(strcmp(tmpName, "schalte")==0 && strcmp(value, "")!=0){
     strcpy(rawCmdAnschluss, value);
-
+    
     Serial.print(F("OK Anschluss: "));
     Serial.print(value);
     Serial.print(F("="));
