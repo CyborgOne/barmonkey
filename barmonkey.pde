@@ -67,7 +67,7 @@ IPAddress pi_adress(192, 168, 1, 16);
 char* rawCmdAnschluss = (char*)malloc(sizeof(char)*20);
 char* rawCmdMenge = (char*)malloc(sizeof(char)*20);
 char* zubereitungRezeptId  = (char*)malloc(sizeof(char)*20);
-const int MAX_BUFFER_LEN = 50; // max characters in page name/parameter 
+const int MAX_BUFFER_LEN = 80; // max characters in page name/parameter 
 char buffer[MAX_BUFFER_LEN+1]; // additional character for terminating null
 
 
@@ -599,6 +599,7 @@ void zutatAbfuellen(char anschluss[20], char einheiten[20]){
  *  Haupt-Methode für die Zubereitung  
  */
 void rezeptZubereiten(char* rezept) {    
+
   // URL-Parameter parsen
   if (strlen(rezept)) {
     boolean paramError = false;
@@ -620,20 +621,17 @@ void rezeptZubereiten(char* rezept) {
       interfaceClient.println();
       Serial.println();
 
-      char * interfaceString   = readResponse();
-      char * interfaceValues   = strtok (interfaceString, ";");
-
-      char * interfaceId       = interfaceValues;
-      interfaceValues          = strtok(NULL, ";");
-
-      char * interfaceName     = interfaceValues;
-      interfaceValues          = strtok(NULL, ";");
-
-      char * interfaceZutaten  = interfaceValues;
-      interfaceValues          = strtok(NULL, ";");
-
-      char * interfacePreis    = interfaceValues;
-      interfaceValues          = strtok(NULL, ";");
+      char interfaceString[100];
+      char interfaceId[11];
+      char interfaceName[24];
+      char interfaceZutaten[50];
+      char interfacePreis[15];
+      char* p_ret = readResponse();
+      strcpy(interfaceString, p_ret);
+      strcpy(interfaceId, strtok (interfaceString, ";"));
+      strcpy(interfaceName,strtok(NULL, ";"));
+      strcpy(interfaceZutaten, strtok(NULL, ";"));
+      strcpy(interfacePreis, strtok(NULL, ";"));
 
       Serial.println(F("Zubereitung:"));
 
@@ -649,15 +647,18 @@ void rezeptZubereiten(char* rezept) {
       Serial.print(F("Preis: "));
       Serial.println(interfacePreis);
       Serial.println();
-      
+     
       char* abfuellTmp = strtok(interfaceZutaten, ",:");
       int cnt = 0;
       
       tftZubereitungsOutput(interfaceName);
+      tftOutFreeMem();
       
       char anschluss[3]="0";      
       char menge[5]="0";
+  
       while (abfuellTmp) {
+          
           switch (cnt) {
             case 0:
               strcpy(anschluss, abfuellTmp);
@@ -680,6 +681,7 @@ void rezeptZubereiten(char* rezept) {
       }
       
       tftClearZubereitungsOutput();
+      p_ret==NULL;
     } else {
       Serial.println(F("Verbindungsfehler bei dem Versuch das Rezept abzurufen."));
     }    
@@ -758,7 +760,7 @@ char * readResponse(){
   };
   Serial.println(F("Connected to PI-Interface"));
 
-  char *p_ret = readFromClientInterface(interfaceClient);
+  char* p_ret = readFromClientInterface(interfaceClient);
 
   Serial.println();
   Serial.println(p_ret);
@@ -769,7 +771,7 @@ char * readResponse(){
 
 
 char* readFromClientInterface(EthernetClient client){
-  char *ret = (char*)malloc(sizeof(char)*11);
+  memset(buffer,0, sizeof(buffer)); // clear the buffer
   boolean reading = false;
 
   int i = 0;
@@ -782,7 +784,7 @@ char* readFromClientInterface(EthernetClient client){
     }
 
     if(reading){
-      *(ret+i) = c;
+      *(buffer+i) = c;
       i++;  
     }
 
@@ -790,9 +792,9 @@ char* readFromClientInterface(EthernetClient client){
       reading = true;
     }    
   }
-  *(ret+i)='\0';  
+  *(buffer+i)='\0';  
 
-  return ret;
+  return buffer;
 }
 
 
@@ -912,3 +914,6 @@ void output(char *text){
   Serial.println(text);
   tft.println(text);
 }
+
+
+
