@@ -667,7 +667,7 @@ void rezeptZubereiten(char* rezept) {
               strcpy(menge, abfuellTmp);
 
               if(atoi(anschluss)>0 && atoi(menge)>0){
-                 zutatAbfuellen(anschluss, "5");
+                 zutatAbfuellen(anschluss, menge);
               }
               
               delay(500);
