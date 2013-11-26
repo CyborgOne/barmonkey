@@ -46,33 +46,34 @@ const int switchPinPressure =  2;
 const int switchPinVentil   =  3;
 
 // 4 Pins für Binärwert
-const int switchBinaryPin1        =  4;
-const int switchBinaryPin2        =  5;
-const int switchBinaryPin4        =  6;
-const int switchBinaryPin8        =  7;
+const int switchBinaryPin1  =  4;
+const int switchBinaryPin2  =  5;
+const int switchBinaryPin4  =  6;
+const int switchBinaryPin8  =  7;
 
 // Variablen für Wiege-Funktion
 float tara;
 float faktor;
-int masse = 0;
-float Gewicht = 0;
-float eichWert = 284.7;
-float eichGewicht = 309;
-int anzahlMittelung = 300; 
+int   masse            = 0;
+float Gewicht          = 0;
+float eichWert         = 284.7;
+float eichGewicht      = 309;
+int   anzahlMittelung  = 300; 
 
 
 // Variablen für Netzwerkdienste
-IPAddress pi_adress(192, 168, 1, 16);
-
-char* rawCmdAnschluss = (char*)malloc(sizeof(char)*20);
-char* rawCmdMenge = (char*)malloc(sizeof(char)*20);
-char* zubereitungRezeptId  = (char*)malloc(sizeof(char)*20);
-const int MAX_BUFFER_LEN = 80; // max characters in page name/parameter 
-char buffer[MAX_BUFFER_LEN+1]; // additional character for terminating null
-
-
+IPAddress      pi_adress(192, 168, 1, 16);
 EthernetServer HttpServer(80); 
 EthernetClient interfaceClient;
+
+
+// Variablen für Webseiten/Parameter
+char*      rawCmdAnschluss          = (char*)malloc(sizeof(char)*20);
+char*      rawCmdMenge              = (char*)malloc(sizeof(char)*20);
+char*      zubereitungRezeptId      = (char*)malloc(sizeof(char)*20);
+const int  MAX_BUFFER_LEN           = 80; // max characters in page name/parameter 
+char       buffer[MAX_BUFFER_LEN+1]; // additional character for terminating null
+
 
 
 #if defined(__SAM3X8E__)
@@ -107,16 +108,11 @@ boolean resetSytem = false;
  * - Waage initialisieren (Tara)
  */
 void setup() {
-  unsigned char mac[]  = {
-    0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED  };
-  unsigned char ip[]   = {
-    192, 168, 1, 15  };
-  unsigned char dns[]  = {
-    192, 168, 1, 1  };
-  unsigned char gate[] = {
-    192, 168, 1, 1  };
-  unsigned char mask[] = {
-    255, 255, 255, 0  };
+  unsigned char mac[]  = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED  };
+  unsigned char ip[]   = { 192, 168, 1, 15 };
+  unsigned char dns[]  = { 192, 168, 1, 1  };
+  unsigned char gate[] = { 192, 168, 1, 1  };
+  unsigned char mask[] = { 255, 255, 255, 0  };
   // Serial initialisieren
   Serial.begin(9600);
   while (!Serial) {
@@ -139,13 +135,12 @@ void setup() {
 
   Serial.print( F("IP: ") );
   Serial.println(Ethernet.localIP());
-  tftout("IP: " , ST7735_YELLOW, 15, 45);
-  tft.print(Ethernet.localIP());
+  tftOutIp();
 
-  tft.fillRoundRect(10, 80, 110, 17, 3, ST7735_GREEN);
-  tftout("Speicher: " , ST7735_RED, 15, 85);
-  tft.fillRoundRect(10, 100, 110, 17, 3, ST7735_GREEN);
-  tftout("Gewicht: ", ST7735_RED, 15, 105);
+  tft.fillRoundRect(10, 40, 110, 17, 3, ST7735_GREEN);
+  tftout("Speicher: " , ST7735_RED, 15, 45);
+  tft.fillRoundRect(10, 60, 110, 17, 3, ST7735_GREEN);
+  tftout("Gewicht: ", ST7735_RED, 15, 65);
 
   // PINs einrichten
   pinMode(switchBinaryPin1,        OUTPUT);
@@ -187,9 +182,7 @@ void loop() {
   if (client) {
     
     while (client.connected()) {
-      if(client.available()){
-        digitalWrite(3, HIGH);
-        
+      if(client.available()){        
         Serial.println(F("Website anzeigen"));
         showWebsite(client);
         
@@ -197,8 +190,6 @@ void loop() {
         Serial.println(freeMemory());
         delay(100);
         client.stop();
-  
-        digitalWrite(3, LOW);
       }
     }
   }
@@ -385,7 +376,7 @@ void  runZubereitungWebpage(EthernetClient client){
 
 
 // ---------------------------------------
-//     Ausgabe-Hilfsmethoden
+//     HTML-Hilfsmethoden
 // ---------------------------------------
 
 void showHead(EthernetClient client){
@@ -403,58 +394,6 @@ void showFooter(EthernetClient client){
   client.println(freeMemory()); 
   client.print(F("</div>"));
   client.print(htmlFooter);
-}
-
-
-
-void tftOutFreeMem(){
-   if(lastMem != freeMemory() ){
-    lastMem = freeMemory();
-
-    tft.fillRoundRect(65, 80, 45, 17, 3, ST7735_GREEN);
-
-    tft.setCursor(70, 85);
-    tft.setTextColor(ST7735_MAGENTA);
-    tft.print(freeMemory());
-  }
-}
-
-void tftOutGewicht(){
-  tft.fillRoundRect(65, 100, 45, 17, 3, ST7735_GREEN);
-
-  tft.setCursor(70, 105);
-  tft.setTextColor(ST7735_MAGENTA);
-  tft.print(masse);
-}
-
-
-
-void tftout(char *text, uint16_t color, uint16_t x, uint16_t y) {
-  tft.setCursor(x, y);
-  tft.setTextColor(color);
-  tft.setTextWrap(true);
-  tft.print(text);
-}
-
-void tftZubereitungsOutput(char* interfaceName){
-  tft.fillRoundRect(10, 120, 110, 40, 3, ST7735_GREEN);
-  tftout(interfaceName, ST7735_MAGENTA, 20, 125);   
-}
-
-void tftClearZubereitungsOutput(){
-  tft.fillRoundRect(0, 120, 130, 60, 3, ST7735_BLACK);
-}
-
-void tftAnschlussOutput(char* anschluss, char* menge){
-  tft.fillRoundRect(10, 135, 110, 30, 3, ST7735_GREEN);
-  tftout("Anschluss ", ST7735_BLUE, 15, 140);   
-  tft.print(anschluss);
-  tftout(menge, ST7735_BLUE, 15, 150);   
-  tft.print(F("g ausgeben"));
-}
-
-void tftClearAnschlussOutput(){
-  tft.fillRoundRect(10, 135, 110, 30, 3, ST7735_GREEN);
 }
 
 
@@ -478,6 +417,69 @@ void initStrings(){
     "</body></html>");
     
 }
+
+
+
+// ---------------------------------------
+//     TFT-Hilfsmethoden
+// ---------------------------------------
+void tftout(char *text, uint16_t color, uint16_t x, uint16_t y) {
+  tft.setCursor(x, y);
+  tft.setTextColor(color);
+  tft.setTextWrap(true);
+  tft.print(text);
+}
+
+void tftOutIp(){
+  tftout("IP: " , ST7735_YELLOW, 10, 25);
+  tft.print(Ethernet.localIP()); 
+}
+
+void tftOutFreeMem(){
+   if(lastMem != freeMemory() ){
+    lastMem = freeMemory();
+
+    tft.fillRoundRect(65, 40, 45, 17, 3, ST7735_GREEN);
+
+    tft.setCursor(70, 45);
+    tft.setTextColor(ST7735_MAGENTA);
+    tft.print(freeMemory());
+  }
+}
+
+int lastWeight=0;
+void tftOutGewicht(){
+  if(lastWeight != masse ){
+    lastWeight = masse;
+    
+    tft.fillRoundRect(65, 60, 45, 17, 3, ST7735_GREEN);
+    tft.setCursor(70, 65);
+    tft.setTextColor(ST7735_MAGENTA);
+    tft.print(masse);
+  }
+}
+
+void tftZubereitungsOutput(char* interfaceName){
+  tft.fillRoundRect(10, 90, 110, 40, 3, ST7735_GREEN);
+  tftout(interfaceName, ST7735_MAGENTA, 15, 95);   
+}
+
+void tftClearZubereitungsOutput(){
+  tft.fillRoundRect(0, 90, 128, 40, 3, ST7735_BLACK);
+}
+
+void tftAnschlussOutput(char* anschluss, char* menge){
+  tft.fillRoundRect(10, 103, 110, 25, 3, ST7735_GREEN);
+  tftout("Anschluss ", ST7735_BLUE, 15, 110);   
+  tft.print(anschluss);
+  tftout(menge, ST7735_BLUE, 15, 120);   
+  tft.print(F("g ausgeben"));
+}
+
+void tftClearAnschlussOutput(){
+  tft.fillRoundRect(10, 103, 110, 25, 3, ST7735_GREEN);
+}
+
 
 
 
@@ -526,9 +528,13 @@ void zutatAbfuellen(char anschluss[20], char einheiten[20]){
     delay(10);
 
     // aktuelles Gewicht merken (spaeter hier auf richtiges Glas pruefen?)
-    int tmpCurrentWeight = masse;
-
+    int tmpWeightBefore = refreshWeight();
+    // temporäre Variable in der sich das aktuelle Gewicht gemerkt wird
     int tmpVal = refreshWeight();
+
+    int startmillis = millis();
+    int highestVal = tmpVal;
+    int stablileMessDauer = 0;
 
     Serial.print(F("Anschluss: "));
     Serial.print(atoi(anschluss));
@@ -543,9 +549,17 @@ void zutatAbfuellen(char anschluss[20], char einheiten[20]){
     // Pumpe einschalten
     digitalWrite(switchPinPressure, HIGH);
     
-    while ((tmpVal-tmpCurrentWeight) < atoi(einheiten)){
+    while ((tmpVal-tmpWeightBefore) < atoi(einheiten) && stablileMessDauer < 4000){
       tmpVal = refreshWeight();
-      delay(20);
+      
+      if(highestVal < tmpVal){
+        highestVal = tmpVal;
+        startmillis = millis();
+      }
+
+      stablileMessDauer = millis()-startmillis;
+
+      delay(5);
     }
 
     Serial.print(F("Abschaltung bei Menge:"));
@@ -556,9 +570,9 @@ void zutatAbfuellen(char anschluss[20], char einheiten[20]){
     digitalWrite(switchPinPressure, LOW);   
 
     tmpVal = refreshWeight();
-    int startmillis = millis();
-    int highestVal = tmpVal;
-    int stablileMessDauer = 0;
+    startmillis = millis();
+    highestVal = tmpVal;
+    stablileMessDauer = 0;
 
     // Warten bis nichts mehr nachlaeuft
     delay(10);
