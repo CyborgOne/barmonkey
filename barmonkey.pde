@@ -66,6 +66,7 @@ IPAddress pi_adress(192, 168, 1, 16);
 
 char* rawCmdAnschluss = (char*)malloc(sizeof(char)*20);
 char* rawCmdMenge = (char*)malloc(sizeof(char)*20);
+char* zubereitungRezeptId  = (char*)malloc(sizeof(char)*20);
 const int MAX_BUFFER_LEN = 50; // max characters in page name/parameter 
 char buffer[MAX_BUFFER_LEN+1]; // additional character for terminating null
 
@@ -203,30 +204,12 @@ void loop() {
   }
   delay(100);
   // Gecachte URL-Parameter leeren
-  memset(rawCmdAnschluss,0, sizeof(rawCmdAnschluss)); // clear the buffer
-  memset(rawCmdMenge,0, sizeof(rawCmdMenge)); // clear the buffer
+  memset(rawCmdAnschluss,0, sizeof(rawCmdAnschluss));
+  memset(rawCmdMenge,0, sizeof(rawCmdMenge));
+  memset(zubereitungRezeptId,0, sizeof(zubereitungRezeptId));
+  
 }
 
-
-void tftOutFreeMem(){
-   if(lastMem != freeMemory() ){
-    lastMem = freeMemory();
-
-    tft.fillRoundRect(65, 80, 45, 17, 3, ST7735_GREEN);
-
-    tft.setCursor(70, 85);
-    tft.setTextColor(ST7735_MAGENTA);
-    tft.print(freeMemory());
-  }
-}
-
-void tftOutGewicht(){
-  tft.fillRoundRect(65, 100, 45, 17, 3, ST7735_GREEN);
-
-  tft.setCursor(70, 105);
-  tft.setTextColor(ST7735_MAGENTA);
-  tft.print(masse);
-}
 
 
 // ---------------------------------------
@@ -274,8 +257,11 @@ void showWebsite(EthernetClient client){
  if(!pageFound){
     runIndexWebpage(client);
   }
-  
+  delay(20);
 }
+
+
+
 
 // ---------------------------------------
 //     Webseiten
@@ -382,6 +368,14 @@ void  runZubereitungWebpage(EthernetClient client){
 
   client.print(F("<h4>Zubereitung</h4><br/>"));
 
+  if (atoi(zubereitungRezeptId)!=0 ) {
+    Serial.print(F("REZEPT "));
+    Serial.print(zubereitungRezeptId);
+    Serial.println(F(" zubereiten"));
+    
+    rezeptZubereiten(zubereitungRezeptId);
+  }
+
   showFooter(client);
 }
 
@@ -391,7 +385,7 @@ void  runZubereitungWebpage(EthernetClient client){
 
 
 // ---------------------------------------
-//     HTML-Hilfsmethoden
+//     Ausgabe-Hilfsmethoden
 // ---------------------------------------
 
 void showHead(EthernetClient client){
@@ -413,12 +407,56 @@ void showFooter(EthernetClient client){
 
 
 
+void tftOutFreeMem(){
+   if(lastMem != freeMemory() ){
+    lastMem = freeMemory();
+
+    tft.fillRoundRect(65, 80, 45, 17, 3, ST7735_GREEN);
+
+    tft.setCursor(70, 85);
+    tft.setTextColor(ST7735_MAGENTA);
+    tft.print(freeMemory());
+  }
+}
+
+void tftOutGewicht(){
+  tft.fillRoundRect(65, 100, 45, 17, 3, ST7735_GREEN);
+
+  tft.setCursor(70, 105);
+  tft.setTextColor(ST7735_MAGENTA);
+  tft.print(masse);
+}
+
+
+
 void tftout(char *text, uint16_t color, uint16_t x, uint16_t y) {
   tft.setCursor(x, y);
   tft.setTextColor(color);
   tft.setTextWrap(true);
   tft.print(text);
 }
+
+void tftZubereitungsOutput(char* interfaceName){
+  tft.fillRoundRect(10, 120, 110, 40, 3, ST7735_GREEN);
+  tftout(interfaceName, ST7735_MAGENTA, 20, 125);   
+}
+
+void tftClearZubereitungsOutput(){
+  tft.fillRoundRect(0, 120, 130, 60, 3, ST7735_BLACK);
+}
+
+void tftAnschlussOutput(char* anschluss, char* menge){
+  tft.fillRoundRect(10, 135, 110, 30, 3, ST7735_GREEN);
+  tftout("Anschluss ", ST7735_BLUE, 15, 140);   
+  tft.print(anschluss);
+  tftout(menge, ST7735_BLUE, 15, 150);   
+  tft.print(F("g ausgeben"));
+}
+
+void tftClearAnschlussOutput(){
+  tft.fillRoundRect(10, 135, 110, 30, 3, ST7735_GREEN);
+}
+
 
 void initStrings(){
   htmlHeader = F("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n");
@@ -476,11 +514,6 @@ void setBinaryPins(byte value){
  */
 void zutatAbfuellen(char anschluss[20], char einheiten[20]){
   // SCHALTVORGANG
-
-  Serial.print(F("Anschluss: "));
-  Serial.println(anschluss);
-  Serial.print(F("Menge: "));
-  Serial.println(einheiten);
   if (atoi(anschluss)!=0  && atoi(einheiten)!=0 ) {
     int onTime = millis();
     // Selektion des Ventils
@@ -496,10 +529,6 @@ void zutatAbfuellen(char anschluss[20], char einheiten[20]){
     int tmpCurrentWeight = masse;
 
     int tmpVal = refreshWeight();
-    delay(30);
-
-    // Pumpe einschalten
-    digitalWrite(switchPinPressure, HIGH);
 
     Serial.print(F("Anschluss: "));
     Serial.print(atoi(anschluss));
@@ -507,6 +536,13 @@ void zutatAbfuellen(char anschluss[20], char einheiten[20]){
     Serial.print(atoi(einheiten));
     Serial.println(F("ml geoeffnet"));
 
+    delay(30);
+
+    tftAnschlussOutput(anschluss, einheiten);
+
+    // Pumpe einschalten
+    digitalWrite(switchPinPressure, HIGH);
+    
     while ((tmpVal-tmpCurrentWeight) < atoi(einheiten)){
       tmpVal = refreshWeight();
       delay(20);
@@ -550,6 +586,8 @@ void zutatAbfuellen(char anschluss[20], char einheiten[20]){
 
     setBinaryPins(0);
 
+    tftClearAnschlussOutput();
+
   } 
   else {
     Serial.println(F("!!! Es wurden nicht alle Parameter zum Schalten angegeben !!!"));
@@ -568,15 +606,19 @@ void rezeptZubereiten(char* rezept) {
     if (interfaceClient.connect(pi_adress, 80)) {
       delay(100);
       interfaceClient.print(F("GET /interface.php?command=getRezeptById&rezeptId="));
-      for (char *p = rezept; *p; p++){
-        interfaceClient.print( *p ) ;
-      }
-//      interfaceClient.print(rezept);
+      Serial.print(F("GET /interface.php?command=getRezeptById&rezeptId="));
+      interfaceClient.print(rezept);
+      Serial.print(rezept);
       interfaceClient.println(F(" HTTP/1.1"));
-      interfaceClient.print(F(" Host: "));
+      Serial.println(F(" HTTP/1.1"));
+      interfaceClient.print(F("Host: "));
+      Serial.print(F("Host: "));
       interfaceClient.println(pi_adress);
+      Serial.println(pi_adress);
       interfaceClient.println(F("Connection: close"));
+      Serial.println(F("Connection: close"));
       interfaceClient.println();
+      Serial.println();
 
       char * interfaceString   = readResponse();
       char * interfaceValues   = strtok (interfaceString, ";");
@@ -593,21 +635,52 @@ void rezeptZubereiten(char* rezept) {
       char * interfacePreis    = interfaceValues;
       interfaceValues          = strtok(NULL, ";");
 
-      output(F("Zubereitung:"));
+      Serial.println(F("Zubereitung:"));
 
-      outputNoNewLine(F("Id: "));
-      output(interfaceId);
+      Serial.print(F("Id: "));
+      Serial.println(interfaceId);
 
-      outputNoNewLine(F("Name: "));
-      output(interfaceName);
+      Serial.print(F("Name: "));
+      Serial.println(interfaceName);
 
-      outputNoNewLine(F("Zutaten: "));
-      output(interfaceZutaten);
+      Serial.print(F("Zutaten: "));
+      Serial.println(interfaceZutaten);
 
-      outputNoNewLine(F("Preis: "));
-      outputNoNewLine(interfacePreis);
-    } 
-    else {
+      Serial.print(F("Preis: "));
+      Serial.println(interfacePreis);
+      Serial.println();
+      
+      char* abfuellTmp = strtok(interfaceZutaten, ",:");
+      int cnt = 0;
+      
+      tftZubereitungsOutput(interfaceName);
+      
+      char anschluss[3]="0";      
+      char menge[5]="0";
+      while (abfuellTmp) {
+          switch (cnt) {
+            case 0:
+              strcpy(anschluss, abfuellTmp);
+              break;
+            case 1:
+              strcpy(menge, abfuellTmp);
+
+              if(atoi(anschluss)>0 && atoi(menge)>0){
+                 zutatAbfuellen(anschluss, "5");
+              }
+              
+              delay(500);
+              memset(anschluss,0, sizeof(anschluss));
+              memset(menge,0, sizeof(menge));
+              break;
+          }
+          abfuellTmp = strtok(NULL, ",:");
+          cnt=cnt==0?1:0;
+
+      }
+      
+      tftClearZubereitungsOutput();
+    } else {
       Serial.println(F("Verbindungsfehler bei dem Versuch das Rezept abzurufen."));
     }    
 
@@ -724,9 +797,9 @@ char* readFromClientInterface(EthernetClient client){
 
 
 char* readFromClient(EthernetClient client){
-  char paramName[10];
-  char paramValue[10];
-  char pageName[10];
+  char paramName[20];
+  char paramValue[20];
+  char pageName[20];
   if (client) {
     while (client.connected()) {
       if (client.available()) {
@@ -785,8 +858,6 @@ void pruefeURLParameter(char* tmpName, char* value){
     strcpy(rawCmdAnschluss, value);
     
     Serial.print(F("OK Anschluss: "));
-    Serial.print(value);
-    Serial.print(F("="));
     Serial.println(rawCmdAnschluss);    
   }
   
@@ -794,10 +865,16 @@ void pruefeURLParameter(char* tmpName, char* value){
     strcpy(rawCmdMenge, value);
 
     Serial.print(F("OK Menge: "));
-    Serial.print(value);
-    Serial.print(F("="));
     Serial.println(rawCmdMenge);    
   } 
+    
+  if(strcmp(tmpName, "RezeptId")==0 && strcmp(value, "")!=0){
+    strcpy(zubereitungRezeptId, value);
+
+    Serial.print(F("OK Rezept: "));
+    Serial.println(zubereitungRezeptId);    
+  } 
+  
 }
 
 
@@ -835,6 +912,3 @@ void output(char *text){
   Serial.println(text);
   tft.println(text);
 }
-
-
-
