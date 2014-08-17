@@ -1,18 +1,18 @@
 /* 
  barmonkey - v1.0
  
- Arduino Sketch für barmonkey 
+ Arduino Sketch fÃ¼r barmonkey 
  Copyright (c) 2013 Daniel Scheidler All right reserved.
  
- barmonkey ist Freie Software: Sie können es unter den Bedingungen
+ barmonkey ist Freie Software: Sie kÃ¶nnen es unter den Bedingungen
  der GNU General Public License, wie von der Free Software Foundation,
- Version 3 der Lizenz oder (nach Ihrer Option) jeder späteren
- veröffentlichten Version, weiterverbreiten und/oder modifizieren.
+ Version 3 der Lizenz oder (nach Ihrer Option) jeder spÃ¤teren
+ verÃ¶ffentlichten Version, weiterverbreiten und/oder modifizieren.
  
- barmonkey wird in der Hoffnung, dass es nützlich sein wird, aber
- OHNE JEDE GEWÄHRLEISTUNG, bereitgestellt; sogar ohne die implizite
- Gewährleistung der MARKTFÄHIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK.
- Siehe die GNU General Public License für weitere Details.
+ barmonkey wird in der Hoffnung, dass es nÃ¼tzlich sein wird, aber
+ OHNE JEDE GEWÃ„HRLEISTUNG, bereitgestellt; sogar ohne die implizite
+ GewÃ¤hrleistung der MARKTFÃ„HIGKEIT oder EIGNUNG FÃœR EINEN BESTIMMTEN ZWECK.
+ Siehe die GNU General Public License fÃ¼r weitere Details.
  
  Sie sollten eine Kopie der GNU General Public License zusammen mit diesem
  Programm erhalten haben. Wenn nicht, siehe <http://www.gnu.org/licenses/>.
@@ -26,8 +26,8 @@
 
 int lastMem = freeMemory();
 
-// Digital-Output Pins für Ventilauswahl 
-// per Binär Wert (4 Pins = 0-15)
+// Digital-Output Pins fÃ¼r Ventilauswahl 
+// per BinÃ¤r Wert (4 Pins = 0-15)
 const byte numPins  =  4;
 
 // Analog-Input Pin zum auslesen der Waage
@@ -45,13 +45,16 @@ const int switchPinPressure =  2;
 // Pin zum Ventil schalten 
 const int switchPinVentil   =  3;
 
-// 4 Pins für Binärwert
+// 4 Pins fÃ¼r BinÃ¤rwert
 const int switchBinaryPin1  =  4;
 const int switchBinaryPin2  =  5;
 const int switchBinaryPin4  =  6;
 const int switchBinaryPin8  =  7;
 
-// Variablen für Wiege-Funktion
+// Pin für Beeper
+const int switchPinBeep  =  8;
+
+// Variablen fÃ¼r Wiege-Funktion
 float tara;
 float faktor;
 int   masse            = 0;
@@ -60,14 +63,12 @@ float eichWert         = 284.7;
 float eichGewicht      = 309;
 int   anzahlMittelung  = 300; 
 
-
-// Variablen für Netzwerkdienste
+// Variablen fÃ¼r Netzwerkdienste
 IPAddress      pi_adress(192, 168, 1, 16);
 EthernetServer HttpServer(80); 
 EthernetClient interfaceClient;
 
-
-// Variablen für Webseiten/Parameter
+// Variablen fÃ¼r Webseiten/Parameter
 char*      rawCmdAnschluss          = (char*)malloc(sizeof(char)*20);
 char*      rawCmdMenge              = (char*)malloc(sizeof(char)*20);
 char*      zubereitungRezeptId      = (char*)malloc(sizeof(char)*20);
@@ -77,8 +78,8 @@ char       buffer[MAX_BUFFER_LEN+1]; // additional character for terminating nul
 
 
 #if defined(__SAM3X8E__)
-    #undef __FlashStringHelper::F(string_literal)
-    #define F(string_literal) string_literal
+#undef __FlashStringHelper::F(string_literal)
+#define F(string_literal) string_literal
 #endif
 
 // Option 1: use any pins but a little slower
@@ -94,8 +95,6 @@ unsigned long resetMillis;
 boolean resetSytem = false;
 // --------------- END - Reset stuff -----------------------
 
-
-
 /**
  * SETUP
  *
@@ -108,11 +107,17 @@ boolean resetSytem = false;
  * - Waage initialisieren (Tara)
  */
 void setup() {
-  unsigned char mac[]  = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED  };
-  unsigned char ip[]   = { 192, 168, 1, 15 };
-  unsigned char dns[]  = { 192, 168, 1, 1  };
-  unsigned char gate[] = { 192, 168, 1, 1  };
-  unsigned char mask[] = { 255, 255, 255, 0  };
+  unsigned char mac[]  = {
+    0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED    };
+  unsigned char ip[]   = { 
+    192, 168, 1, 15   };
+  unsigned char dns[]  = { 
+    192, 168, 1, 1    };
+  unsigned char gate[] = { 
+    192, 168, 1, 1    };
+  unsigned char mask[] = { 
+    255, 255, 255, 0    };
+   
   // Serial initialisieren
   Serial.begin(9600);
   while (!Serial) {
@@ -120,11 +125,11 @@ void setup() {
   }
   Serial.println(F("Barmonkey v1"));
   Serial.println();
-  
+
   // TFT initialisieren
   tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
   tft.fillScreen(ST7735_BLACK);
-  
+
   tft.setTextSize(2);
   tftout("Barmonkey", ST7735_GREEN, 10, 5);
   tft.setTextSize(1);
@@ -150,6 +155,7 @@ void setup() {
 
   pinMode(switchPinVentil,   OUTPUT);
   pinMode(switchPinPressure, OUTPUT);
+  pinMode(switchPinBeep,     OUTPUT);
 
   pinMode(weightPin,         INPUT);
 
@@ -158,6 +164,10 @@ void setup() {
   faktor = (eichWert - tara) /  eichGewicht;  
 
   initStrings();
+
+  delay (200);
+  
+  initBeep();
 }
 
 /**
@@ -177,17 +187,14 @@ void loop() {
   float sensorValue = refreshWeight();
   tftOutFreeMem();
 
-
   EthernetClient client = HttpServer.available();
   if (client) {
-    
+
     while (client.connected()) {
       if(client.available()){        
-        Serial.println(F("Website anzeigen"));
         showWebsite(client);
-        
+
         tftOutFreeMem();
-        Serial.println(freeMemory());
         delay(100);
         client.stop();
       }
@@ -198,10 +205,7 @@ void loop() {
   memset(rawCmdAnschluss,0, sizeof(rawCmdAnschluss));
   memset(rawCmdMenge,0, sizeof(rawCmdMenge));
   memset(zubereitungRezeptId,0, sizeof(zubereitungRezeptId));
-  
 }
-
-
 
 // ---------------------------------------
 //     Webserver Hilfsmethoden
@@ -215,7 +219,7 @@ void showWebsite(EthernetClient client){
   tftOutFreeMem();
   delay(200);
   boolean pageFound = false;
-  
+
   char *ptr = strstr(HttpFrame, "favicon.ico");
   if(ptr){
     pageFound = true;
@@ -238,21 +242,15 @@ void showWebsite(EthernetClient client){
   tftOutFreeMem();
 
   delay(300);
-  //ptr = strstr(HttpFrame, "/&%/&%/");   // Sonst gibts ein Speicherproblem
 
-//  free(ptr);
   ptr=NULL;
-//  free(HttpFrame);
   HttpFrame=NULL;
 
- if(!pageFound){
+  if(!pageFound){
     runIndexWebpage(client);
   }
   delay(20);
 }
-
-
-
 
 // ---------------------------------------
 //     Webseiten
@@ -282,68 +280,73 @@ void  runRawCmdWebpage(EthernetClient client, char* HttpFrame){
 
 
   showHead(client);
-  
+
   client.println(F(  "<h4>Manuelle Schaltung</h4><br/>"
-                     "<form action='/rawCmd'>"));
+    "<form action='/rawCmd'>"));
 
   client.println(F( "<b>Anschluss: </b>"
-                    "<select name=\"schalte\" size=\"1\" > "
-                    "  <option value=\"1\">Anschluss 1</option>"
-                    "  <option value=\"2\">Anschluss 2</option>"
-                    "  <option value=\"3\">Anschluss 3</option>"
-                    "  <option value=\"4\">Anschluss 4</option>"
-                    "  <option value=\"5\">Anschluss 5</option>"
-                    "  <option value=\"6\">Anschluss 6</option>"
-                    "  <option value=\"7\">Anschluss 7</option>"
-                    "  <option value=\"8\">Anschluss 8</option>"
-                    "  <option value=\"9\">Anschluss 9</option>"
-                    "  <option value=\"10\">Anschluss 10</option>"
-                    "  <option value=\"11\">Anschluss 11</option>"
-                    "  <option value=\"12\">Anschluss 12</option>"
-                    "  <option value=\"13\">Anschluss 13</option>"
-                    "  <option value=\"14\">Anschluss 14</option>"
-                    "  <option value=\"15\">Anschluss 15</option>"
-                    "  <option value=\"16\">Anschluss 16</option>"
-                    "</select>" ));
-      
-      client.println(F( "<b>Schaltdauer: </b>"
-                    "<select name=\"menge\" size=\"1\" > "
-                    "  <option value=\"5\">5g</option>"
-                    "  <option value=\"10\">10g</option>"
-                    "  <option value=\"15\">15g</option>"
-                    "  <option value=\"20\">20g</option>"
-                    "  <option value=\"25\">25g</option>"
-                    "  <option value=\"30\">30g</option>"
-                    "  <option value=\"35\">35g</option>"
-                    "  <option value=\"40\">40g</option>"
-                    "  <option value=\"45\">45g</option>"
-                    "  <option value=\"50\">50g</option>"
-                    "  <option value=\"60\">60g</option>"
-                    "  <option value=\"70\">70g</option>"
-                    "  <option value=\"80\">80g</option>"
-                    "  <option value=\"90\">90g</option>"
-                    "  <option value=\"100\">100g</option>"
-                    "  <option value=\"150\">150g</option>"
-                    "  <option value=\"200\">200g</option>"
-                    "</select>"));
-     
-      client.println(F("<input type='submit' value='Abschicken'/>"
-                       "</form>"));
+    "<select name=\"schalte\" size=\"1\" > "
+    "  <option value=\"1\">Anschluss 1</option>"
+    "  <option value=\"2\">Anschluss 2</option>"
+    "  <option value=\"3\">Anschluss 3</option>"
+    "  <option value=\"4\">Anschluss 4</option>"
+    "  <option value=\"5\">Anschluss 5</option>"
+    "  <option value=\"6\">Anschluss 6</option>"
+    "  <option value=\"7\">Anschluss 7</option>"
+    "  <option value=\"8\">Anschluss 8</option>"
+    "  <option value=\"9\">Anschluss 9</option>"
+    "  <option value=\"10\">Anschluss 10</option>"
+    "  <option value=\"11\">Anschluss 11</option>"
+    "  <option value=\"12\">Anschluss 12</option>"
+    "  <option value=\"13\">Anschluss 13</option>"
+    "  <option value=\"14\">Anschluss 14</option>"
+    "  <option value=\"15\">Anschluss 15</option>"
+    "  <option value=\"16\">Anschluss 16</option>"
+    "</select>" 
+    ));
+
+  client.println(F( "<b>Schaltdauer: </b>"
+  "<input type='text' name='menge' length='5'>"
+  /*
+    "<select name=\"menge\" size=\"1\" > "
+    "  <option value=\"5\">5g</option>"
+    "  <option value=\"10\">10g</option>"
+    "  <option value=\"15\">15g</option>"
+    "  <option value=\"20\">20g</option>"
+    "  <option value=\"25\">25g</option>"
+    "  <option value=\"30\">30g</option>"
+    "  <option value=\"35\">35g</option>"
+    "  <option value=\"40\">40g</option>"
+    "  <option value=\"45\">45g</option>"
+    "  <option value=\"50\">50g</option>"
+    "  <option value=\"60\">60g</option>"
+    "  <option value=\"70\">70g</option>"
+    "  <option value=\"80\">80g</option>"
+    "  <option value=\"90\">90g</option>"
+    "  <option value=\"100\">100g</option>"
+    "  <option value=\"150\">150g</option>"
+    "  <option value=\"200\">200g</option>"
+    "</select>"
+    */
+    ));
+
+  client.println(F("<input type='submit' value='Abschicken'/>"
+    "</form>"));
 
   showFooter(client);
 }
 
 
 void postRawCmd(EthernetClient client, char* anschluss, char* einheiten){
-
   showHead(client);
   
   client.print(F(  "<h4>Schaltvorgang</h4><br/>"
-                     "Es werden "));
+    "Es werden "));
   client.print(rawCmdMenge);  
   client.print(F(  "ml aus Anschluss "));
   client.print(rawCmdAnschluss);
   client.println(F(  " ausgegeben.<br/>"));
+  
   zutatAbfuellen(anschluss, einheiten);
 
   showFooter(client);
@@ -352,7 +355,7 @@ void postRawCmd(EthernetClient client, char* anschluss, char* einheiten){
 
 
 /**
- * Rezept zubereiten anzeigen/durchführen
+ * Rezept zubereiten anzeigen/durchfÃ¼hren
  */
 void  runZubereitungWebpage(EthernetClient client){
   showHead(client);
@@ -360,10 +363,6 @@ void  runZubereitungWebpage(EthernetClient client){
   client.print(F("<h4>Zubereitung</h4><br/>"));
 
   if (atoi(zubereitungRezeptId)!=0 ) {
-    Serial.print(F("REZEPT "));
-    Serial.print(zubereitungRezeptId);
-    Serial.println(F(" zubereiten"));
-    
     rezeptZubereiten(zubereitungRezeptId);
   }
 
@@ -399,7 +398,7 @@ void showFooter(EthernetClient client){
 
 void initStrings(){
   htmlHeader = F("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n");
-  
+
   htmlHead = F("<html><head>"
     "<title>Barmonkey</title>"
     "<style type=\"text/css\">"
@@ -410,12 +409,12 @@ void initStrings(){
     "</head><body text=\"white\" bgcolor=\"#494949\">"
     "<center>"
     "<hr><h2>Barmonkey</h2><hr>") ;
-    
-    htmlFooter = F( "</center>"
-    "<a  style=\"position: absolute;left: 30px; bottom: 20px; \"  href=\"/\">Zur&uuml;ck zum Hauptmen&uuml;</a>"
+
+  htmlFooter = F( "</center>"
+    "<a  style=\"position: absolute;left: 30px; bottom: 20px; \"  href=\"/\">Zurück zum Hauptmenü</a>"
     "<span style=\"position: absolute;right: 30px; bottom: 20px; \">Entwickelt von Daniel Scheidler und Julian Theis</span>"
     "</body></html>");
-    
+
 }
 
 
@@ -436,7 +435,7 @@ void tftOutIp(){
 }
 
 void tftOutFreeMem(){
-   if(lastMem != freeMemory() ){
+  if(lastMem != freeMemory() ){
     lastMem = freeMemory();
 
     tft.fillRoundRect(65, 40, 45, 17, 3, ST7735_GREEN);
@@ -451,7 +450,7 @@ int lastWeight=0;
 void tftOutGewicht(){
   if(lastWeight != masse ){
     lastWeight = masse;
-    
+
     tft.fillRoundRect(65, 60, 45, 17, 3, ST7735_GREEN);
     tft.setCursor(70, 65);
     tft.setTextColor(ST7735_MAGENTA);
@@ -493,7 +492,7 @@ void tftClearAnschlussOutput(){
 void setBinaryPins(byte value){
   String myStr;
   byte pins[] = {
-    switchBinaryPin1, switchBinaryPin2, switchBinaryPin4, switchBinaryPin8  };
+    switchBinaryPin1, switchBinaryPin2, switchBinaryPin4, switchBinaryPin8    };
 
   for (byte i=0; i<numPins; i++) {
     byte state = bitRead(value, i);
@@ -529,7 +528,7 @@ void zutatAbfuellen(char anschluss[20], char einheiten[20]){
 
     // aktuelles Gewicht merken (spaeter hier auf richtiges Glas pruefen?)
     int tmpWeightBefore = refreshWeight();
-    // temporäre Variable in der sich das aktuelle Gewicht gemerkt wird
+    // temporÃ¤re Variable in der sich das aktuelle Gewicht gemerkt wird
     int tmpVal = refreshWeight();
 
     int startmillis = millis();
@@ -540,7 +539,6 @@ void zutatAbfuellen(char anschluss[20], char einheiten[20]){
     Serial.print(atoi(anschluss));
     Serial.print(F(" fuer "));
     Serial.print(atoi(einheiten));
-    Serial.println(F("ml geoeffnet"));
 
     delay(30);
 
@@ -548,10 +546,10 @@ void zutatAbfuellen(char anschluss[20], char einheiten[20]){
 
     // Pumpe einschalten
     digitalWrite(switchPinPressure, HIGH);
-    
+
     while ((tmpVal-tmpWeightBefore) < atoi(einheiten) && stablileMessDauer < 4000){
       tmpVal = refreshWeight();
-      
+
       if(highestVal < tmpVal){
         highestVal = tmpVal;
         startmillis = millis();
@@ -562,9 +560,8 @@ void zutatAbfuellen(char anschluss[20], char einheiten[20]){
       delay(5);
     }
 
-    Serial.print(F("Abschaltung bei Menge:"));
+    Serial.print(F("Abschaltung bei:"));
     Serial.print(tmpVal);
-    Serial.println(F("g"));
 
     // Pumpe abschalten
     digitalWrite(switchPinPressure, LOW);   
@@ -587,30 +584,24 @@ void zutatAbfuellen(char anschluss[20], char einheiten[20]){
       stablileMessDauer = millis()-startmillis;
     }
 
-    Serial.print(F("Reell abgefuellte Menge:"));
+    Serial.print(F("Reell abgefuellt:"));
     Serial.print(highestVal);
-    Serial.println(F("g"));
 
     // Ventil abschalten
     digitalWrite(switchPinVentil, LOW); 
     int offTime = millis();
-    Serial.print(F("Dauer des Vorgangs: "));
-    Serial.print(offTime - onTime);
-    Serial.println(F("ms"));
 
     setBinaryPins(0);
-
     tftClearAnschlussOutput();
-
   } 
   else {
-    Serial.println(F("!!! Es wurden nicht alle Parameter zum Schalten angegeben !!!"));
+    Serial.println(F("Es wurden nicht alle Parameter zum Schalten angegeben"));
   }
 }
 
 
 /**
- *  Haupt-Methode für die Zubereitung  
+ *  Haupt-Methode fÃ¼r die Zubereitung  
  */
 void rezeptZubereiten(char* rezept) {    
 
@@ -621,19 +612,12 @@ void rezeptZubereiten(char* rezept) {
     if (interfaceClient.connect(pi_adress, 80)) {
       delay(100);
       interfaceClient.print(F("GET /interface.php?command=getRezeptById&rezeptId="));
-      Serial.print(F("GET /interface.php?command=getRezeptById&rezeptId="));
       interfaceClient.print(rezept);
-      Serial.print(rezept);
       interfaceClient.println(F(" HTTP/1.1"));
-      Serial.println(F(" HTTP/1.1"));
       interfaceClient.print(F("Host: "));
-      Serial.print(F("Host: "));
       interfaceClient.println(pi_adress);
-      Serial.println(pi_adress);
       interfaceClient.println(F("Connection: close"));
-      Serial.println(F("Connection: close"));
       interfaceClient.println();
-      Serial.println();
 
       char interfaceString[100];
       char interfaceId[11];
@@ -647,56 +631,42 @@ void rezeptZubereiten(char* rezept) {
       strcpy(interfaceZutaten, strtok(NULL, ";"));
       strcpy(interfacePreis, strtok(NULL, ";"));
 
-      Serial.println(F("Zubereitung:"));
-
-      Serial.print(F("Id: "));
-      Serial.println(interfaceId);
-
-      Serial.print(F("Name: "));
-      Serial.println(interfaceName);
-
-      Serial.print(F("Zutaten: "));
-      Serial.println(interfaceZutaten);
-
-      Serial.print(F("Preis: "));
-      Serial.println(interfacePreis);
-      Serial.println();
-     
       char* abfuellTmp = strtok(interfaceZutaten, ",:");
       int cnt = 0;
-      
+
       tftZubereitungsOutput(interfaceName);
       tftOutFreeMem();
-      
+
       char anschluss[3]="0";      
       char menge[5]="0";
-  
-      while (abfuellTmp) {
-          
-          switch (cnt) {
-            case 0:
-              strcpy(anschluss, abfuellTmp);
-              break;
-            case 1:
-              strcpy(menge, abfuellTmp);
 
-              if(atoi(anschluss)>0 && atoi(menge)>0){
-                 zutatAbfuellen(anschluss, menge);
-              }
-              
-              delay(500);
-              memset(anschluss,0, sizeof(anschluss));
-              memset(menge,0, sizeof(menge));
-              break;
+      while (abfuellTmp) {
+
+        switch (cnt) {
+        case 0:
+          strcpy(anschluss, abfuellTmp);
+          break;
+        case 1:
+          strcpy(menge, abfuellTmp);
+
+          if(atoi(anschluss)>0 && atoi(menge)>0){
+            zutatAbfuellen(anschluss, menge);
           }
-          abfuellTmp = strtok(NULL, ",:");
-          cnt=cnt==0?1:0;
+
+          delay(500);
+          memset(anschluss,0, sizeof(anschluss));
+          memset(menge,0, sizeof(menge));
+          break;
+        }
+        abfuellTmp = strtok(NULL, ",:");
+        cnt=cnt==0?1:0;
 
       }
-      
+
       tftClearZubereitungsOutput();
       p_ret==NULL;
-    } else {
+    } 
+    else {
       Serial.println(F("Verbindungsfehler bei dem Versuch das Rezept abzurufen."));
     }    
 
@@ -718,16 +688,12 @@ void rezeptZubereiten(char* rezept) {
  * Bei der Wage den aktuellen Belastungspunkt als 0 setzen
  */
 void doTara(){
-
   // Wage Initialisieren
-
   for (int i = 0; i < anzahlMittelung; i++) {  //Mittelung von tara
     tara = tara + analogRead(weightPin);
   }
 
   tara = tara/anzahlMittelung;
-  Serial.print(F("Tara: "));
-  Serial.println(tara);
 }
 
 
@@ -750,7 +716,7 @@ float refreshWeight(){
   masse = Gewicht; 
 
   tftOutGewicht();
-  
+
   return masse;
 }
 
@@ -762,17 +728,15 @@ float refreshWeight(){
 //     Ethernet - Hilfsmethoden
 // ---------------------------------------
 /**
- * Liefert die Rückgabe des Webinterfaces (PI) zurück 
+ * Liefert die RÃ¼ckgabe des Webinterfaces (PI) zurÃ¼ck 
  * und gibt die entsprechende Zeile auf dem Serial-Monitor aus
  */
 char * readResponse(){
   unsigned long startTime = millis();
 
-  Serial.println(F("Waiting for Server"));
   while ((!interfaceClient.available()) && ((millis() - startTime ) < 3000)){ 
     // waiting for server   
   };
-  Serial.println(F("Connected to PI-Interface"));
 
   char* p_ret = readFromClientInterface(interfaceClient);
 
@@ -811,7 +775,6 @@ char* readFromClientInterface(EthernetClient client){
   return buffer;
 }
 
-
 char* readFromClient(EthernetClient client){
   char paramName[20];
   char paramValue[20];
@@ -821,44 +784,31 @@ char* readFromClient(EthernetClient client){
       if (client.available()) {
         memset(buffer,0, sizeof(buffer)); // clear the buffer
 
-        client.find("/");
+          client.find("/");
         if(byte bytesReceived = client.readBytesUntil(' ', buffer, sizeof(buffer))){ 
           buffer[bytesReceived] = '\0';
 
-          Serial.print(F("URL: "));
-          Serial.println(buffer);
-          
           if(strcmp(buffer, "favicon.ico\0")){
             char* paramsTmp = strtok(buffer, " ?=&/\r\n");
             int cnt = 0;
             while (paramsTmp) {
-              //Serial.print(F("Read: "));
-              //Serial.println(paramsTmp);
-              
               switch (cnt) {
-                case 0:
-                  strcpy(pageName, paramsTmp);
-                  Serial.print(F("Domain: "));
-                  Serial.println(buffer);
-                  break;
-                case 1:
-                  strcpy(paramName, paramsTmp);
-                  Serial.print(F("Parameter: "));
-                  Serial.print(paramName);
-                  break;
-                case 2:
-                  strcpy(paramValue, paramsTmp);
-                  Serial.print(F(" = "));
-                  Serial.println(paramValue);
-                  pruefeURLParameter(paramName, paramValue);
-                  break;
+              case 0:
+                strcpy(pageName, paramsTmp);
+                break;
+              case 1:
+                strcpy(paramName, paramsTmp);
+                break;
+              case 2:
+                strcpy(paramValue, paramsTmp);
+                pruefeURLParameter(paramName, paramValue);
+                break;
               }
-              
+
               paramsTmp = strtok(NULL, " ?=&/\r\n");
               cnt=cnt==0?1:cnt==1?2:1;
             }
           }
-    
         }
       }// end if Client available
       break;
@@ -868,33 +818,19 @@ char* readFromClient(EthernetClient client){
   return buffer;
 }
 
-
 void pruefeURLParameter(char* tmpName, char* value){
   if(strcmp(tmpName, "schalte")==0 && strcmp(value, "")!=0){
     strcpy(rawCmdAnschluss, value);
-    
-    Serial.print(F("OK Anschluss: "));
-    Serial.println(rawCmdAnschluss);    
   }
-  
+
   if(strcmp(tmpName, "menge")==0 && strcmp(value, "")!=0){
     strcpy(rawCmdMenge, value);
-
-    Serial.print(F("OK Menge: "));
-    Serial.println(rawCmdMenge);    
   } 
-    
+
   if(strcmp(tmpName, "RezeptId")==0 && strcmp(value, "")!=0){
     strcpy(zubereitungRezeptId, value);
-
-    Serial.print(F("OK Rezept: "));
-    Serial.println(zubereitungRezeptId);    
   } 
-  
 }
-
-
-
 
 // ---------------------------------------
 //     Allgemeine Hilfsmethoden
@@ -907,27 +843,22 @@ char* int2bin(unsigned int x)
   return buffer;
 }
 
-
-
-void outputNoNewLine(const __FlashStringHelper *text){
-  Serial.print(text);
-  tft.print(text);
+void initBeep (){
+   int startmillis = millis();
+   playTone(1400, 70);
+   delay(20);
+   playTone(1300, 70);
+   delay(10);
+   playTone(1200, 70);
+   delay(30);
+   playTone(850, 150); 
 }
 
-void output(const __FlashStringHelper *text){
-  Serial.println(text);
-  tft.println(text);
+void playTone(int tone, int duration) {
+  for (long i = 0; i < duration * 1000L; i += tone * 2) {
+    digitalWrite(switchPinBeep, HIGH);
+    delayMicroseconds(tone);
+    digitalWrite(switchPinBeep, LOW);
+    delayMicroseconds(tone);
+  }
 }
-
-void outputNoNewLine(char *text){
-  Serial.print(text);
-  tft.print(text);
-}
-
-void output(char *text){
-  Serial.println(text);
-  tft.println(text);
-}
-
-
-
