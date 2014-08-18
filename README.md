@@ -37,6 +37,8 @@ Pin-Belegung:
 
 7 - Binär-Switch 8
 
+8 - Speaker
+
 A0 - Wage Signal
 
 
