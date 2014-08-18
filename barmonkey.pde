@@ -1,17 +1,17 @@
 /* 
  barmonkey - v1.0
  
- Arduino Sketch fÃ¼r barmonkey 
+ Arduino Sketch für barmonkey 
  Copyright (c) 2013 Daniel Scheidler All right reserved.
  
- barmonkey ist Freie Software: Sie kÃ¶nnen es unter den Bedingungen
+ Barmonkey ist Freie Software: Sie können es unter den Bedingungen
  der GNU General Public License, wie von der Free Software Foundation,
- Version 3 der Lizenz oder (nach Ihrer Option) jeder spÃ¤teren
- verÃ¶ffentlichten Version, weiterverbreiten und/oder modifizieren.
+ Version 3 der Lizenz oder jeder späteren veröffentlichten Version, 
+ weiterverbreiten und/oder modifizieren.
  
- barmonkey wird in der Hoffnung, dass es nÃ¼tzlich sein wird, aber
+ Barmonkey wird in der Hoffnung, dass es nützlich sein wird, aber
  OHNE JEDE GEWÃ„HRLEISTUNG, bereitgestellt; sogar ohne die implizite
- GewÃ¤hrleistung der MARKTFÃ„HIGKEIT oder EIGNUNG FÃœR EINEN BESTIMMTEN ZWECK.
+ Gewährleistung der MARKTFÄHIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK.
  Siehe die GNU General Public License fÃ¼r weitere Details.
  
  Sie sollten eine Kopie der GNU General Public License zusammen mit diesem
@@ -26,7 +26,7 @@
 
 int lastMem = freeMemory();
 
-// Digital-Output Pins fÃ¼r Ventilauswahl 
+// Digital-Output Pins für Ventilauswahl 
 // per BinÃ¤r Wert (4 Pins = 0-15)
 const byte numPins  =  4;
 
@@ -45,7 +45,7 @@ const int switchPinPressure =  2;
 // Pin zum Ventil schalten 
 const int switchPinVentil   =  3;
 
-// 4 Pins fÃ¼r BinÃ¤rwert
+// 4 Pins für BinÃ¤rwert
 const int switchBinaryPin1  =  4;
 const int switchBinaryPin2  =  5;
 const int switchBinaryPin4  =  6;
@@ -54,7 +54,7 @@ const int switchBinaryPin8  =  7;
 // Pin für Beeper
 const int switchPinBeep  =  8;
 
-// Variablen fÃ¼r Wiege-Funktion
+// Variablen für Wiege-Funktion
 float tara;
 float faktor;
 int   masse            = 0;
@@ -63,12 +63,12 @@ float eichWert         = 284.7;
 float eichGewicht      = 309;
 int   anzahlMittelung  = 300; 
 
-// Variablen fÃ¼r Netzwerkdienste
+// Variablen für Netzwerkdienste
 IPAddress      pi_adress(192, 168, 1, 16);
 EthernetServer HttpServer(80); 
 EthernetClient interfaceClient;
 
-// Variablen fÃ¼r Webseiten/Parameter
+// Variablen für Webseiten/Parameter
 char*      rawCmdAnschluss          = (char*)malloc(sizeof(char)*20);
 char*      rawCmdMenge              = (char*)malloc(sizeof(char)*20);
 char*      zubereitungRezeptId      = (char*)malloc(sizeof(char)*20);
@@ -307,27 +307,6 @@ void  runRawCmdWebpage(EthernetClient client, char* HttpFrame){
 
   client.println(F( "<b>Schaltdauer: </b>"
   "<input type='text' name='menge' length='5'>"
-  /*
-    "<select name=\"menge\" size=\"1\" > "
-    "  <option value=\"5\">5g</option>"
-    "  <option value=\"10\">10g</option>"
-    "  <option value=\"15\">15g</option>"
-    "  <option value=\"20\">20g</option>"
-    "  <option value=\"25\">25g</option>"
-    "  <option value=\"30\">30g</option>"
-    "  <option value=\"35\">35g</option>"
-    "  <option value=\"40\">40g</option>"
-    "  <option value=\"45\">45g</option>"
-    "  <option value=\"50\">50g</option>"
-    "  <option value=\"60\">60g</option>"
-    "  <option value=\"70\">70g</option>"
-    "  <option value=\"80\">80g</option>"
-    "  <option value=\"90\">90g</option>"
-    "  <option value=\"100\">100g</option>"
-    "  <option value=\"150\">150g</option>"
-    "  <option value=\"200\">200g</option>"
-    "</select>"
-    */
     ));
 
   client.println(F("<input type='submit' value='Abschicken'/>"
